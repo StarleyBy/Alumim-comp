@@ -7,8 +7,16 @@
   <meta name="description" content="לוח שיבוץ שבועי אינטראקטיבי וקומפקטי לסמארטפונים עבור חדר המחשבים והספרייה בבית הספר עלומים חולון">
   <meta name="theme-color" content="#2563eb">
 
-  <!-- Favicon SVG -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>">
+  <!-- Favicons and Web App Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+
+  <!-- Mobile & PWA Web App Capabilities -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="עלומים">
   <link rel="manifest" href="manifest.json">
 
   <!-- Stylesheet -->
@@ -57,7 +65,7 @@
         <div class="header-actions">
           <!-- Background Relax Music Toggle & Style Selector -->
           <div class="melody-controls-group">
-            <button type="button" id="btnMelodyToggle" class="btn-icon btn-melody" title="הפעלת מוזיקת רגיעה סטריאופונית" aria-label="מוזיקת רגיעה">
+            <button type="button" id="btnMelodyToggle" class="btn-icon btn-melody" title="הפעלת / עצירת מוזיקת רגיעה (MP3)" aria-label="מוזיקת רגיעה">
               <span class="melody-icon">🎶</span>
               <span class="eq-visualizer" aria-hidden="true">
                 <span class="eq-bar eq-bar-1"></span>
@@ -65,8 +73,8 @@
                 <span class="eq-bar eq-bar-3"></span>
               </span>
             </button>
-            <button type="button" id="btnMelodyStyle" class="btn-melody-style" title="החלפת סגנון מוזיקה (ג'אז, לו-פיי, רוק, לירי)">
-              <span id="melodyStyleLabel">☕ ג'אז</span>
+            <button type="button" id="btnMelodyStyle" class="btn-melody-style" title="מעבר בין 7 רצועות מוזיקה להרגעה">
+              <span id="melodyStyleLabel">☕ ג׳אז קפה</span>
             </button>
           </div>
           <!-- Sound FX Toggle Button -->
@@ -305,6 +313,12 @@
           <button type="button" id="btnShareNative" class="share-btn share-btn-native">
             <span class="share-icon">📱</span>
             <span>שיתוף באפליקציות נוספות / העתקת קישור</span>
+          </button>
+
+          <!-- 8. Install PWA to Home Screen -->
+          <button type="button" id="btnInstallPwa" class="share-btn share-btn-install" style="grid-column: span 2; background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12)); border-color: rgba(37, 99, 235, 0.35); font-weight: 800;">
+            <span class="share-icon">📲</span>
+            <span>התקנת אפליקציה למכשיר (מסך הבית)</span>
           </button>
         </div>
       </div>

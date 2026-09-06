@@ -156,6 +156,17 @@ const ShareEngine = (() => {
         }
       });
     }
+
+    // 8. Install PWA to Home Screen
+    const btnInstall = document.getElementById('btnInstallPwa');
+    if (btnInstall) {
+      btnInstall.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        if (window.App && typeof App.promptPwaInstall === 'function') {
+          App.promptPwaInstall();
+        }
+      });
+    }
   }
 
   /**

@@ -42,6 +42,9 @@ const App = (() => {
     // Setup Global Key Shortcuts
     setupKeyboardShortcuts();
 
+    // Setup PWA Service Worker & Install Capability
+    initPwa();
+
     // Start Real-Time Sync Loop if Google Sheets is connected
     setupRealtimeSync();
   }
@@ -205,10 +208,70 @@ const App = (() => {
     }, durationMs);
   }
 
+  /**
+   * PWA Service Worker & Installation Flow
+   */
+  let deferredInstallPrompt = null;
+
+  function initPwa() {
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.warn('CompAlumim: Service worker note:', err);
+        });
+      });
+    }
+
+    // Capture Native PWA Install Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const btnInstall = document.getElementById('btnInstallPwa');
+      if (btnInstall) {
+        btnInstall.classList.add('is-ready');
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      showToast('האפליקציה הותקנה בהצלחה במכשירך! 🎉', 'success', 3500);
+    });
+  }
+
+  function promptPwaInstall() {
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    if (isStandalone) {
+      showToast('האפליקציה כבר מותקנת ופועלת כמסך בית עצמאי! 📱', 'info', 3000);
+      return;
+    }
+
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          showToast('מתקין את האפליקציה למכשיר... 📲', 'info', 2500);
+        }
+        deferredInstallPrompt = null;
+      });
+      return;
+    }
+
+    if (isIos) {
+      showToast('באייפון: לחצו על כפתור השיתוף בתחתית הדפדפן (⎋) ובחרו "הוסף למסך הבית" ➕', 'info', 6000);
+      return;
+    }
+
+    showToast('להתקנה: לחצו על שלוש הנקודות בדפדפן (⋮) ובחרו "התקן אפליקציה" או "הוסף למסך הבית" 📲', 'info', 5000);
+  }
+
   return {
     init,
     showToast,
-    toggleTheme
+    toggleTheme,
+    promptPwaInstall
   };
 })();
 
