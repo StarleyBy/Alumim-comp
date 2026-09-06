@@ -95,7 +95,7 @@ function ensureSheetsExist(ss) {
     { name: SHEET_TEACHERS, headers: ['id', 'name', 'color', 'textColor'] },
     { name: SHEET_CLASSES,  headers: ['id', 'name', 'color', 'textColor'] },
     { name: SHEET_SUBJECTS, headers: ['id', 'name', 'color', 'textColor'] },
-    { name: SHEET_SCHEDULE, headers: ['key', 'room', 'day', 'period', 'teacher', 'className', 'subject', 'isPermanent', 'updatedAt'] },
+    { name: SHEET_SCHEDULE, headers: ['key', 'room', 'day', 'period', 'teacher', 'teacher2', 'className', 'subject', 'isPermanent', 'updatedAt'] },
     { name: SHEET_CONFIG,   headers: ['key', 'jsonValue'] }
   ];
 
@@ -158,6 +158,13 @@ function readScheduleMap(sheet) {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return {};
 
+  const headers = data[0];
+  const t2Idx = headers.indexOf('teacher2');
+  const classIdx = headers.indexOf('className');
+  const subjIdx = headers.indexOf('subject');
+  const permIdx = headers.indexOf('isPermanent');
+  const updIdx = headers.indexOf('updatedAt');
+
   const map = {};
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
@@ -169,10 +176,11 @@ function readScheduleMap(sheet) {
       day: Number(row[2]),
       period: Number(row[3]),
       teacher: row[4],
-      className: row[5],
-      subject: row[6] || '',
-      isPermanent: String(row[7]).toLowerCase() === 'true',
-      updatedAt: row[8] || ''
+      teacher2: t2Idx !== -1 ? (row[t2Idx] || '') : '',
+      className: classIdx !== -1 ? row[classIdx] : row[5],
+      subject: (subjIdx !== -1 ? row[subjIdx] : row[6]) || '',
+      isPermanent: String(permIdx !== -1 ? row[permIdx] : row[7]).toLowerCase() === 'true',
+      updatedAt: (updIdx !== -1 ? row[updIdx] : row[8]) || ''
     };
   }
   return map;
@@ -183,7 +191,7 @@ function readScheduleMap(sheet) {
  */
 function writeScheduleMap(sheet, schedule) {
   if (!sheet) return;
-  const headers = ['key', 'room', 'day', 'period', 'teacher', 'className', 'subject', 'isPermanent', 'updatedAt'];
+  const headers = ['key', 'room', 'day', 'period', 'teacher', 'teacher2', 'className', 'subject', 'isPermanent', 'updatedAt'];
   sheet.clearContents();
   sheet.appendRow(headers);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f1f5f9');
@@ -199,6 +207,7 @@ function writeScheduleMap(sheet, schedule) {
       s.day !== undefined ? s.day : '',
       s.period !== undefined ? s.period : '',
       s.teacher || '',
+      s.teacher2 || '',
       s.className || '',
       s.subject || '',
       !!s.isPermanent,

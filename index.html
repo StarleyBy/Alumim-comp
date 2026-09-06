@@ -55,10 +55,20 @@
         </div>
 
         <div class="header-actions">
-          <!-- Background Melody Toggle Button -->
-          <button type="button" id="btnMelodyToggle" class="btn-icon" title="הפעלת מנגינת רקע נעימה" aria-label="מנגינת רקע">
-            🎶
-          </button>
+          <!-- Background Relax Music Toggle & Style Selector -->
+          <div class="melody-controls-group">
+            <button type="button" id="btnMelodyToggle" class="btn-icon btn-melody" title="הפעלת מוזיקת רגיעה סטריאופונית" aria-label="מוזיקת רגיעה">
+              <span class="melody-icon">🎶</span>
+              <span class="eq-visualizer" aria-hidden="true">
+                <span class="eq-bar eq-bar-1"></span>
+                <span class="eq-bar eq-bar-2"></span>
+                <span class="eq-bar eq-bar-3"></span>
+              </span>
+            </button>
+            <button type="button" id="btnMelodyStyle" class="btn-melody-style" title="החלפת סגנון מוזיקה (ג'אז, לו-פיי, רוק, לירי)">
+              <span id="melodyStyleLabel">☕ ג'אז</span>
+            </button>
+          </div>
           <!-- Sound FX Toggle Button -->
           <button type="button" id="btnSoundToggle" class="btn-icon" title="צלילי כפתורים" aria-label="צלילים">
             🔊
@@ -173,10 +183,19 @@
         <form id="bookingForm">
           <div class="form-group">
             <label for="selectTeacher" class="form-label">
-              <span class="required">*</span> מורה:
+              <span class="required">*</span> מורה ראשי/ת:
             </label>
             <select id="selectTeacher" class="form-select" required>
-              <option value="">-- בחר/י מורה --</option>
+              <option value="">-- בחר/י מורה ראשי/ת --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="selectTeacher2" class="form-label">
+              🤝 מורה נוסף/ת (שיעור משותף - אופציונלי):
+            </label>
+            <select id="selectTeacher2" class="form-select">
+              <option value="">-- ללא מורה נוסף (שיעור רגיל) --</option>
             </select>
           </div>
 
@@ -327,7 +346,14 @@
           <div id="adminTeachersList" class="item-grid"></div>
           <form id="formAddTeacher" class="add-item-form">
             <input type="text" id="newTeacherName" class="form-input" placeholder="שם מורה חדש/ה" required>
-            <input type="color" id="newTeacherColor" class="color-picker-input" value="#e0f2fe" title="צבע תגית">
+            <div class="color-picker-group" title="צבע רקע התגית">
+              <span class="color-label">רקע:</span>
+              <input type="color" id="newTeacherColor" class="color-picker-input" value="#e0f2fe">
+            </div>
+            <div class="color-picker-group" title="צבע גופן הטקסט">
+              <span class="color-label">גופן:</span>
+              <input type="color" id="newTeacherTextColor" class="color-picker-input" value="#0369a1">
+            </div>
             <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
           </form>
         </div>
@@ -337,7 +363,14 @@
           <div id="adminClassesList" class="item-grid"></div>
           <form id="formAddClass" class="add-item-form">
             <input type="text" id="newClassName" class="form-input" placeholder="שם כיתה (ז׳4, ח׳1...)" required>
-            <input type="color" id="newClassColor" class="color-picker-input" value="#fef08a" title="צבע תגית">
+            <div class="color-picker-group" title="צבע רקע התגית">
+              <span class="color-label">רקע:</span>
+              <input type="color" id="newClassColor" class="color-picker-input" value="#fef08a">
+            </div>
+            <div class="color-picker-group" title="צבע גופן הטקסט">
+              <span class="color-label">גופן:</span>
+              <input type="color" id="newClassTextColor" class="color-picker-input" value="#854d0e">
+            </div>
             <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
           </form>
         </div>
@@ -347,7 +380,14 @@
           <div id="adminSubjectsList" class="item-grid"></div>
           <form id="formAddSubject" class="add-item-form">
             <input type="text" id="newSubjectName" class="form-input" placeholder="שם מקצוע חדש" required>
-            <input type="color" id="newSubjectColor" class="color-picker-input" value="#dbeafe" title="צבע תגית">
+            <div class="color-picker-group" title="צבע רקע התגית">
+              <span class="color-label">רקע:</span>
+              <input type="color" id="newSubjectColor" class="color-picker-input" value="#dbeafe">
+            </div>
+            <div class="color-picker-group" title="צבע גופן הטקסט">
+              <span class="color-label">גופן:</span>
+              <input type="color" id="newSubjectTextColor" class="color-picker-input" value="#1e40af">
+            </div>
             <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
           </form>
         </div>

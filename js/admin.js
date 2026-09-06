@@ -177,6 +177,106 @@ const Admin = (() => {
     });
   }
 
+  // In-place editing state
+  let editingTeacherId = null;
+  let editingClassId = null;
+  let editingSubjectId = null;
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /**
+   * Cascade Teacher Rename to existing schedule slots & overrides
+   */
+  function updateTeacherNameInSchedule(oldName, newName) {
+    if (!oldName || !newName || oldName === newName) return;
+    const schedule = Storage.getSchedule();
+    let changed = false;
+    Object.keys(schedule).forEach(k => {
+      if (schedule[k].teacher === oldName) {
+        schedule[k].teacher = newName;
+        changed = true;
+      }
+      if (schedule[k].teacher2 === oldName) {
+        schedule[k].teacher2 = newName;
+        changed = true;
+      }
+    });
+    if (changed) Storage.saveSchedule(schedule);
+
+    const overrides = Storage.getOverrides();
+    let oChanged = false;
+    Object.keys(overrides).forEach(k => {
+      if (overrides[k] && overrides[k].teacher === oldName) {
+        overrides[k].teacher = newName;
+        oChanged = true;
+      }
+      if (overrides[k] && overrides[k].teacher2 === oldName) {
+        overrides[k].teacher2 = newName;
+        oChanged = true;
+      }
+    });
+    if (oChanged) Storage.saveOverrides(overrides);
+  }
+
+  /**
+   * Cascade Class Rename to existing schedule slots & overrides
+   */
+  function updateClassNameInSchedule(oldName, newName) {
+    if (!oldName || !newName || oldName === newName) return;
+    const schedule = Storage.getSchedule();
+    let changed = false;
+    Object.keys(schedule).forEach(k => {
+      if (schedule[k].className === oldName) {
+        schedule[k].className = newName;
+        changed = true;
+      }
+    });
+    if (changed) Storage.saveSchedule(schedule);
+
+    const overrides = Storage.getOverrides();
+    let oChanged = false;
+    Object.keys(overrides).forEach(k => {
+      if (overrides[k] && overrides[k].className === oldName) {
+        overrides[k].className = newName;
+        oChanged = true;
+      }
+    });
+    if (oChanged) Storage.saveOverrides(overrides);
+  }
+
+  /**
+   * Cascade Subject Rename to existing schedule slots & overrides
+   */
+  function updateSubjectNameInSchedule(oldName, newName) {
+    if (!oldName || !newName || oldName === newName) return;
+    const schedule = Storage.getSchedule();
+    let changed = false;
+    Object.keys(schedule).forEach(k => {
+      if (schedule[k].subject === oldName) {
+        schedule[k].subject = newName;
+        changed = true;
+      }
+    });
+    if (changed) Storage.saveSchedule(schedule);
+
+    const overrides = Storage.getOverrides();
+    let oChanged = false;
+    Object.keys(overrides).forEach(k => {
+      if (overrides[k] && overrides[k].subject === oldName) {
+        overrides[k].subject = newName;
+        oChanged = true;
+      }
+    });
+    if (oChanged) Storage.saveOverrides(overrides);
+  }
+
   /**
    * Render Teachers in Admin Tab
    */
@@ -184,50 +284,126 @@ const Admin = (() => {
     const listEl = document.getElementById('adminTeachersList');
     if (!listEl) return;
 
-    const teachers = Storage.getTeachers();
+    const teachers = [...Storage.getTeachers()].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+    );
     listEl.innerHTML = '';
 
-    teachers.forEach((t, index) => {
+    teachers.forEach((t) => {
       const row = document.createElement('div');
       row.className = 'item-row';
-      row.innerHTML = `
-        <div class="item-preview">
-          <span class="badge-item" style="background-color: ${t.color}; color: ${t.textColor || getContrastColor(t.color)}">
-            👤 ${t.name}
-          </span>
-        </div>
-        <div class="item-actions">
-          <label title="שינוי צבע">
-            <input type="color" class="color-picker-input" value="${t.color}" data-type="teacher" data-id="${t.id}">
-          </label>
-          <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteTeacher" data-id="${t.id}">
-            🗑️
-          </button>
-        </div>
-      `;
+      const textColor = t.textColor || getContrastColor(t.color);
+
+      if (t.id === editingTeacherId) {
+        row.innerHTML = `
+          <div class="item-edit-mode">
+            <input type="text" class="form-input edit-teacher-input" value="${escapeHtml(t.name)}" data-id="${t.id}" placeholder="שם מורה חדש">
+            <div style="display: flex; gap: 3px;">
+              <button type="button" class="btn btn-primary btn-sm" data-action="saveEditTeacher" data-id="${t.id}" title="שמור שינוי">✓ שמור</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="cancelEditTeacher" data-id="${t.id}" title="ביטול">✕</button>
+            </div>
+          </div>
+        `;
+      } else {
+        row.innerHTML = `
+          <div class="item-preview">
+            <span class="badge-item" style="background-color: ${t.color}; color: ${textColor}">
+              👤 ${escapeHtml(t.name)}
+            </span>
+          </div>
+          <div class="item-actions">
+            <div class="color-picker-group" title="צבע רקע">
+              <span class="color-label">רקע:</span>
+              <input type="color" class="color-picker-input" value="${t.color}" data-field="color" data-type="teacher" data-id="${t.id}" title="בחירת צבע רקע">
+            </div>
+            <div class="color-picker-group" title="צבע גופן">
+              <span class="color-label">גופן:</span>
+              <input type="color" class="color-picker-input" value="${textColor}" data-field="textColor" data-type="teacher" data-id="${t.id}" title="בחירת צבע גופן">
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" title="עריכת שם" data-action="editTeacher" data-id="${t.id}">
+              ✏️
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteTeacher" data-id="${t.id}">
+              🗑️
+            </button>
+          </div>
+        `;
+      }
       listEl.appendChild(row);
     });
 
-    // Attach color change listeners
-    listEl.querySelectorAll('input[type="color"]').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const id = e.target.dataset.id;
-        const newColor = e.target.value;
-        const teachers = Storage.getTeachers();
-        const item = teachers.find(x => x.id === id);
-        if (item) {
+    if (editingTeacherId) {
+      const editInput = listEl.querySelector('.edit-teacher-input');
+      if (editInput) {
+        editInput.focus();
+        editInput.select();
+        editInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveTeacherRename(editingTeacherId, editInput.value);
+          } else if (e.key === 'Escape') {
+            editingTeacherId = null;
+            renderTeachersList();
+          }
+        });
+      }
+    }
+
+    const handleTeacherColorChange = (e) => {
+      const id = e.target.dataset.id;
+      const field = e.target.dataset.field;
+      const newColor = e.target.value;
+      const allTeachers = Storage.getTeachers();
+      const item = allTeachers.find(x => x.id === id);
+      if (item) {
+        if (field === 'textColor') {
+          item.textColor = newColor;
+        } else {
           item.color = newColor;
-          item.textColor = getContrastColor(newColor);
-          Storage.saveTeachers(teachers);
-          renderTeachersList();
-          Schedule.renderTables();
         }
+        Storage.saveTeachers(allTeachers);
+        const row = e.target.closest('.item-row');
+        if (row) {
+          const badge = row.querySelector('.badge-item');
+          if (badge) {
+            badge.style.backgroundColor = item.color;
+            badge.style.color = item.textColor || getContrastColor(item.color);
+          }
+        }
+        Schedule.renderTables();
+      }
+    };
+
+    listEl.querySelectorAll('input[type="color"]').forEach(input => {
+      input.addEventListener('input', handleTeacherColorChange);
+      input.addEventListener('change', handleTeacherColorChange);
+    });
+
+    listEl.querySelectorAll('[data-action="editTeacher"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingTeacherId = btn.dataset.id;
+        renderTeachersList();
       });
     });
 
-    // Attach delete listeners
+    listEl.querySelectorAll('[data-action="saveEditTeacher"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const row = btn.closest('.item-row');
+        const input = row ? row.querySelector('.edit-teacher-input') : null;
+        if (input) saveTeacherRename(id, input.value);
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="cancelEditTeacher"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingTeacherId = null;
+        renderTeachersList();
+      });
+    });
+
     listEl.querySelectorAll('[data-action="deleteTeacher"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const id = btn.dataset.id;
         let teachers = Storage.getTeachers();
         if (teachers.length <= 1) {
@@ -243,6 +419,36 @@ const Admin = (() => {
     });
   }
 
+  function saveTeacherRename(id, newName) {
+    newName = (newName || '').trim();
+    if (!newName) {
+      App.showToast('שם המורה אינו יכול להיות ריק', 'warning');
+      return;
+    }
+    const teachers = Storage.getTeachers();
+    const item = teachers.find(x => x.id === id);
+    if (!item) {
+      editingTeacherId = null;
+      renderTeachersList();
+      return;
+    }
+    if (item.name !== newName) {
+      if (teachers.some(x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase())) {
+        App.showToast('מורה בשם זה כבר קיים/ת במערכת', 'warning');
+        return;
+      }
+      const oldName = item.name;
+      item.name = newName;
+      Storage.saveTeachers(teachers);
+      updateTeacherNameInSchedule(oldName, newName);
+      Schedule.updateDropdowns();
+      Schedule.renderTables();
+      App.showToast(`שם המורה עודכן ל-"${newName}" ✨`, 'success');
+    }
+    editingTeacherId = null;
+    renderTeachersList();
+  }
+
   /**
    * Render Classes in Admin Tab
    */
@@ -250,48 +456,124 @@ const Admin = (() => {
     const listEl = document.getElementById('adminClassesList');
     if (!listEl) return;
 
-    const classes = Storage.getClasses();
+    const classes = [...Storage.getClasses()].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+    );
     listEl.innerHTML = '';
 
     classes.forEach((c) => {
       const row = document.createElement('div');
       row.className = 'item-row';
-      row.innerHTML = `
-        <div class="item-preview">
-          <span class="badge-item" style="background-color: ${c.color}; color: ${c.textColor || getContrastColor(c.color)}">
-            👥 ${c.name}
-          </span>
-        </div>
-        <div class="item-actions">
-          <label title="שינוי צבע">
-            <input type="color" class="color-picker-input" value="${c.color}" data-type="class" data-id="${c.id}">
-          </label>
-          <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteClass" data-id="${c.id}">
-            🗑️
-          </button>
-        </div>
-      `;
+      const textColor = c.textColor || getContrastColor(c.color);
+
+      if (c.id === editingClassId) {
+        row.innerHTML = `
+          <div class="item-edit-mode">
+            <input type="text" class="form-input edit-class-input" value="${escapeHtml(c.name)}" data-id="${c.id}" placeholder="שם כיתה">
+            <div style="display: flex; gap: 3px;">
+              <button type="button" class="btn btn-primary btn-sm" data-action="saveEditClass" data-id="${c.id}" title="שמור שינוי">✓ שמור</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="cancelEditClass" data-id="${c.id}" title="ביטול">✕</button>
+            </div>
+          </div>
+        `;
+      } else {
+        row.innerHTML = `
+          <div class="item-preview">
+            <span class="badge-item" style="background-color: ${c.color}; color: ${textColor}">
+              👥 ${escapeHtml(c.name)}
+            </span>
+          </div>
+          <div class="item-actions">
+            <div class="color-picker-group" title="צבע רקע">
+              <span class="color-label">רקע:</span>
+              <input type="color" class="color-picker-input" value="${c.color}" data-field="color" data-type="class" data-id="${c.id}" title="בחירת צבע רקע">
+            </div>
+            <div class="color-picker-group" title="צבע גופן">
+              <span class="color-label">גופן:</span>
+              <input type="color" class="color-picker-input" value="${textColor}" data-field="textColor" data-type="class" data-id="${c.id}" title="בחירת צבע גופן">
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" title="עריכת שם" data-action="editClass" data-id="${c.id}">
+              ✏️
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteClass" data-id="${c.id}">
+              🗑️
+            </button>
+          </div>
+        `;
+      }
       listEl.appendChild(row);
     });
 
-    // Attach color change listeners
-    listEl.querySelectorAll('input[type="color"]').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const id = e.target.dataset.id;
-        const newColor = e.target.value;
-        const classes = Storage.getClasses();
-        const item = classes.find(x => x.id === id);
-        if (item) {
+    if (editingClassId) {
+      const editInput = listEl.querySelector('.edit-class-input');
+      if (editInput) {
+        editInput.focus();
+        editInput.select();
+        editInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveClassRename(editingClassId, editInput.value);
+          } else if (e.key === 'Escape') {
+            editingClassId = null;
+            renderClassesList();
+          }
+        });
+      }
+    }
+
+    const handleClassColorChange = (e) => {
+      const id = e.target.dataset.id;
+      const field = e.target.dataset.field;
+      const newColor = e.target.value;
+      const allClasses = Storage.getClasses();
+      const item = allClasses.find(x => x.id === id);
+      if (item) {
+        if (field === 'textColor') {
+          item.textColor = newColor;
+        } else {
           item.color = newColor;
-          item.textColor = getContrastColor(newColor);
-          Storage.saveClasses(classes);
-          renderClassesList();
-          Schedule.renderTables();
         }
+        Storage.saveClasses(allClasses);
+        const row = e.target.closest('.item-row');
+        if (row) {
+          const badge = row.querySelector('.badge-item');
+          if (badge) {
+            badge.style.backgroundColor = item.color;
+            badge.style.color = item.textColor || getContrastColor(item.color);
+          }
+        }
+        Schedule.renderTables();
+      }
+    };
+
+    listEl.querySelectorAll('input[type="color"]').forEach(input => {
+      input.addEventListener('input', handleClassColorChange);
+      input.addEventListener('change', handleClassColorChange);
+    });
+
+    listEl.querySelectorAll('[data-action="editClass"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingClassId = btn.dataset.id;
+        renderClassesList();
       });
     });
 
-    // Attach delete listeners
+    listEl.querySelectorAll('[data-action="saveEditClass"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const row = btn.closest('.item-row');
+        const input = row ? row.querySelector('.edit-class-input') : null;
+        if (input) saveClassRename(id, input.value);
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="cancelEditClass"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingClassId = null;
+        renderClassesList();
+      });
+    });
+
     listEl.querySelectorAll('[data-action="deleteClass"]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
@@ -309,6 +591,36 @@ const Admin = (() => {
     });
   }
 
+  function saveClassRename(id, newName) {
+    newName = (newName || '').trim();
+    if (!newName) {
+      App.showToast('שם הכיתה אינו יכול להיות ריק', 'warning');
+      return;
+    }
+    const classes = Storage.getClasses();
+    const item = classes.find(x => x.id === id);
+    if (!item) {
+      editingClassId = null;
+      renderClassesList();
+      return;
+    }
+    if (item.name !== newName) {
+      if (classes.some(x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase())) {
+        App.showToast('כיתה בשם זה כבר קיימת במערכת', 'warning');
+        return;
+      }
+      const oldName = item.name;
+      item.name = newName;
+      Storage.saveClasses(classes);
+      updateClassNameInSchedule(oldName, newName);
+      Schedule.updateDropdowns();
+      Schedule.renderTables();
+      App.showToast(`שם הכיתה עודכן ל-"${newName}" ✨`, 'success');
+    }
+    editingClassId = null;
+    renderClassesList();
+  }
+
   /**
    * Render Subjects in Admin Tab
    */
@@ -316,48 +628,124 @@ const Admin = (() => {
     const listEl = document.getElementById('adminSubjectsList');
     if (!listEl) return;
 
-    const subjects = Storage.getSubjects();
+    const subjects = [...Storage.getSubjects()].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+    );
     listEl.innerHTML = '';
 
     subjects.forEach((s) => {
       const row = document.createElement('div');
       row.className = 'item-row';
-      row.innerHTML = `
-        <div class="item-preview">
-          <span class="badge-item" style="background-color: ${s.color}; color: ${s.textColor || getContrastColor(s.color)}">
-            📖 ${s.name}
-          </span>
-        </div>
-        <div class="item-actions">
-          <label title="שינוי צבע">
-            <input type="color" class="color-picker-input" value="${s.color}" data-type="subject" data-id="${s.id}">
-          </label>
-          <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteSubject" data-id="${s.id}">
-            🗑️
-          </button>
-        </div>
-      `;
+      const textColor = s.textColor || getContrastColor(s.color);
+
+      if (s.id === editingSubjectId) {
+        row.innerHTML = `
+          <div class="item-edit-mode">
+            <input type="text" class="form-input edit-subject-input" value="${escapeHtml(s.name)}" data-id="${s.id}" placeholder="שם מקצוע">
+            <div style="display: flex; gap: 3px;">
+              <button type="button" class="btn btn-primary btn-sm" data-action="saveEditSubject" data-id="${s.id}" title="שמור שינוי">✓ שמור</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="cancelEditSubject" data-id="${s.id}" title="ביטול">✕</button>
+            </div>
+          </div>
+        `;
+      } else {
+        row.innerHTML = `
+          <div class="item-preview">
+            <span class="badge-item" style="background-color: ${s.color}; color: ${textColor}">
+              📖 ${escapeHtml(s.name)}
+            </span>
+          </div>
+          <div class="item-actions">
+            <div class="color-picker-group" title="צבע רקע">
+              <span class="color-label">רקע:</span>
+              <input type="color" class="color-picker-input" value="${s.color}" data-field="color" data-type="subject" data-id="${s.id}" title="בחירת צבע רקע">
+            </div>
+            <div class="color-picker-group" title="צבע גופן">
+              <span class="color-label">גופן:</span>
+              <input type="color" class="color-picker-input" value="${textColor}" data-field="textColor" data-type="subject" data-id="${s.id}" title="בחירת צבע גופן">
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" title="עריכת שם" data-action="editSubject" data-id="${s.id}">
+              ✏️
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" title="מחיקה" data-action="deleteSubject" data-id="${s.id}">
+              🗑️
+            </button>
+          </div>
+        `;
+      }
       listEl.appendChild(row);
     });
 
-    // Attach color change listeners
-    listEl.querySelectorAll('input[type="color"]').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const id = e.target.dataset.id;
-        const newColor = e.target.value;
-        const subjects = Storage.getSubjects();
-        const item = subjects.find(x => x.id === id);
-        if (item) {
+    if (editingSubjectId) {
+      const editInput = listEl.querySelector('.edit-subject-input');
+      if (editInput) {
+        editInput.focus();
+        editInput.select();
+        editInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            saveSubjectRename(editingSubjectId, editInput.value);
+          } else if (e.key === 'Escape') {
+            editingSubjectId = null;
+            renderSubjectsList();
+          }
+        });
+      }
+    }
+
+    const handleSubjectColorChange = (e) => {
+      const id = e.target.dataset.id;
+      const field = e.target.dataset.field;
+      const newColor = e.target.value;
+      const allSubjects = Storage.getSubjects();
+      const item = allSubjects.find(x => x.id === id);
+      if (item) {
+        if (field === 'textColor') {
+          item.textColor = newColor;
+        } else {
           item.color = newColor;
-          item.textColor = getContrastColor(newColor);
-          Storage.saveSubjects(subjects);
-          renderSubjectsList();
-          Schedule.renderTables();
         }
+        Storage.saveSubjects(allSubjects);
+        const row = e.target.closest('.item-row');
+        if (row) {
+          const badge = row.querySelector('.badge-item');
+          if (badge) {
+            badge.style.backgroundColor = item.color;
+            badge.style.color = item.textColor || getContrastColor(item.color);
+          }
+        }
+        Schedule.renderTables();
+      }
+    };
+
+    listEl.querySelectorAll('input[type="color"]').forEach(input => {
+      input.addEventListener('input', handleSubjectColorChange);
+      input.addEventListener('change', handleSubjectColorChange);
+    });
+
+    listEl.querySelectorAll('[data-action="editSubject"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingSubjectId = btn.dataset.id;
+        renderSubjectsList();
       });
     });
 
-    // Attach delete listeners
+    listEl.querySelectorAll('[data-action="saveEditSubject"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const row = btn.closest('.item-row');
+        const input = row ? row.querySelector('.edit-subject-input') : null;
+        if (input) saveSubjectRename(id, input.value);
+      });
+    });
+
+    listEl.querySelectorAll('[data-action="cancelEditSubject"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingSubjectId = null;
+        renderSubjectsList();
+      });
+    });
+
     listEl.querySelectorAll('[data-action="deleteSubject"]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
@@ -371,6 +759,36 @@ const Admin = (() => {
     });
   }
 
+  function saveSubjectRename(id, newName) {
+    newName = (newName || '').trim();
+    if (!newName) {
+      App.showToast('שם המקצוע אינו יכול להיות ריק', 'warning');
+      return;
+    }
+    const subjects = Storage.getSubjects();
+    const item = subjects.find(x => x.id === id);
+    if (!item) {
+      editingSubjectId = null;
+      renderSubjectsList();
+      return;
+    }
+    if (item.name !== newName) {
+      if (subjects.some(x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase())) {
+        App.showToast('מקצוע בשם זה כבר קיים במערכת', 'warning');
+        return;
+      }
+      const oldName = item.name;
+      item.name = newName;
+      Storage.saveSubjects(subjects);
+      updateSubjectNameInSchedule(oldName, newName);
+      Schedule.updateDropdowns();
+      Schedule.renderTables();
+      App.showToast(`שם המקצוע עודכן ל-"${newName}" ✨`, 'success');
+    }
+    editingSubjectId = null;
+    renderSubjectsList();
+  }
+
   /**
    * Setup Add-Item forms and Sync settings
    */
@@ -382,6 +800,7 @@ const Admin = (() => {
         e.preventDefault();
         const nameInput = document.getElementById('newTeacherName');
         const colorInput = document.getElementById('newTeacherColor');
+        const textColorInput = document.getElementById('newTeacherTextColor');
         const name = (nameInput.value || '').trim();
         if (!name) return;
 
@@ -392,11 +811,12 @@ const Admin = (() => {
         }
 
         const color = colorInput.value || '#e0f2fe';
+        const textColor = (textColorInput && textColorInput.value) ? textColorInput.value : getContrastColor(color);
         teachers.push({
           id: 't_' + Date.now(),
           name,
           color,
-          textColor: getContrastColor(color)
+          textColor
         });
 
         Storage.saveTeachers(teachers);
@@ -414,6 +834,7 @@ const Admin = (() => {
         e.preventDefault();
         const nameInput = document.getElementById('newClassName');
         const colorInput = document.getElementById('newClassColor');
+        const textColorInput = document.getElementById('newClassTextColor');
         const name = (nameInput.value || '').trim();
         if (!name) return;
 
@@ -424,11 +845,12 @@ const Admin = (() => {
         }
 
         const color = colorInput.value || '#fef08a';
+        const textColor = (textColorInput && textColorInput.value) ? textColorInput.value : getContrastColor(color);
         classes.push({
           id: 'c_' + Date.now(),
           name,
           color,
-          textColor: getContrastColor(color)
+          textColor
         });
 
         Storage.saveClasses(classes);
@@ -446,6 +868,7 @@ const Admin = (() => {
         e.preventDefault();
         const nameInput = document.getElementById('newSubjectName');
         const colorInput = document.getElementById('newSubjectColor');
+        const textColorInput = document.getElementById('newSubjectTextColor');
         const name = (nameInput.value || '').trim();
         if (!name) return;
 
@@ -456,11 +879,12 @@ const Admin = (() => {
         }
 
         const color = colorInput.value || '#dbeafe';
+        const textColor = (textColorInput && textColorInput.value) ? textColorInput.value : getContrastColor(color);
         subjects.push({
           id: 's_' + Date.now(),
           name,
           color,
-          textColor: getContrastColor(color)
+          textColor
         });
 
         Storage.saveSubjects(subjects);

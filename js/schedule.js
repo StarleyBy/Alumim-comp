@@ -557,14 +557,53 @@ const Schedule = (() => {
       `;
     }
 
+    // Secondary teacher for joint co-teaching lessons
+    let teacher2Badge = '';
+    let teacher2Meta = null;
+    let t2Color = '#fdf2f8';
+    let t2Text = '#9d174d';
+    if (slot.teacher2) {
+      teacher2Meta = Storage.getTeacherByName(slot.teacher2);
+      t2Color = teacher2Meta.color || '#fdf2f8';
+      t2Text = teacher2Meta.textColor || Admin.getContrastColor(t2Color);
+      teacher2Badge = `
+        <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}" title="מורה נוסף/ת: ${slot.teacher2}">
+          ${slot.teacher2}
+        </span>
+      `;
+    }
+
+    const coTeachingTitle = slot.teacher2
+      ? `${slot.teacher} + ${slot.teacher2} (שיעור משותף)`
+      : slot.teacher;
+
     if (isSingleDay) {
-      return `
-        <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''}" title="${slot.teacher} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
+      let teacherBlock = '';
+      if (slot.teacher2) {
+        teacherBlock = `
+          <div class="slot-teachers-group-day">
+            <span class="badge-item badge-teacher" style="background-color: ${teacherColor}; color: ${teacherText}">
+              ${lockHtml}<span>${slot.teacher}</span>
+            </span>
+            <span class="co-teaching-day-badge">🤝 שיעור משותף</span>
+            <span class="badge-item badge-teacher" style="background-color: ${t2Color}; color: ${t2Text}">
+              <span>${slot.teacher2}</span>
+            </span>
+          </div>
+        `;
+      } else {
+        teacherBlock = `
           <div class="slot-card-top">
             <span class="badge-item badge-teacher" style="background-color: ${teacherColor}; color: ${teacherText}">
               ${lockHtml}<span>${slot.teacher}</span>
             </span>
           </div>
+        `;
+      }
+
+      return `
+        <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${slot.teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
+          ${teacherBlock}
           <div class="slot-meta-row">
             <span class="badge-item badge-class" style="background-color: ${classColor}; color: ${classText}">
               ${slot.className}
@@ -575,16 +614,34 @@ const Schedule = (() => {
       `;
     }
 
-    // Week view with adaptive font sizing and same-line lock
+    // Week view with adaptive font sizing, dual teachers and same-line lock
     const tLen = (slot.teacher || '').length;
     const teacherFontClass = tLen > 11 ? 'len-long' : tLen > 6 ? 'len-mid' : 'len-short';
 
-    return `
-      <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''}" title="${slot.teacher} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
-        <!-- Teacher Badge with same-line lock icon -->
+    let teachersWeekHtml = '';
+    if (slot.teacher2) {
+      teachersWeekHtml = `
+        <div class="teachers-group-week">
+          <span class="badge-item badge-teacher teacher-primary" style="background-color: ${teacherColor}; color: ${teacherText}">
+            ${lockHtml}${slot.teacher}
+          </span>
+          <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}">
+            ${slot.teacher2}
+          </span>
+        </div>
+      `;
+    } else {
+      teachersWeekHtml = `
         <span class="badge-item badge-teacher ${teacherFontClass}" style="background-color: ${teacherColor}; color: ${teacherText}">
           ${lockHtml}${slot.teacher}
         </span>
+      `;
+    }
+
+    return `
+      <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${slot.teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
+        <!-- Teacher Badges with same-line lock icon -->
+        ${teachersWeekHtml}
 
         <!-- Class & Subject Mini Row -->
         <div class="slot-meta-row">
@@ -689,6 +746,10 @@ const Schedule = (() => {
     subtitleEl.textContent = `${dayObj.fullName} (${dayDate}) • בית הספר עלומים חולון`;
 
     teacherSelect.value = slotData ? slotData.teacher : '';
+    const teacher2Select = document.getElementById('selectTeacher2');
+    if (teacher2Select) {
+      teacher2Select.value = slotData ? (slotData.teacher2 || '') : '';
+    }
     classSelect.value = slotData ? slotData.className : '';
     subjectSelect.value = slotData ? (slotData.subject || '') : '';
     permanentCheck.checked = slotData ? !!slotData.isPermanent : false;
@@ -699,6 +760,7 @@ const Schedule = (() => {
         🔒 <strong>שיעור קבוע:</strong> שיעור זה מוגדר כקבוע במערכת. רק מנהלת המערכת (טטיאנה) מורשית לערוך או לבטל אותו.
       `;
       teacherSelect.disabled = true;
+      if (teacher2Select) teacher2Select.disabled = true;
       classSelect.disabled = true;
       subjectSelect.disabled = true;
       permanentCheck.disabled = true;
@@ -707,6 +769,7 @@ const Schedule = (() => {
     } else {
       alertEl.style.display = 'none';
       teacherSelect.disabled = false;
+      if (teacher2Select) teacher2Select.disabled = false;
       classSelect.disabled = false;
       subjectSelect.disabled = false;
       permanentCheck.disabled = false;
@@ -727,17 +790,24 @@ const Schedule = (() => {
     if (!activeEditingSlot) return;
 
     const teacherSelect = document.getElementById('selectTeacher');
+    const teacher2Select = document.getElementById('selectTeacher2');
     const classSelect = document.getElementById('selectClass');
     const subjectSelect = document.getElementById('selectSubject');
     const permanentCheck = document.getElementById('checkPermanent');
 
     const teacher = teacherSelect.value;
+    const teacher2 = (teacher2Select && teacher2Select.value) ? teacher2Select.value : '';
     const className = classSelect.value;
     const subject = subjectSelect.value || '';
     const isPermanent = permanentCheck.checked;
 
     if (!teacher || !className) {
       App.showToast('נא לבחור מורה וכיתה', 'warning');
+      return;
+    }
+
+    if (teacher2 && teacher2 === teacher) {
+      App.showToast('נא לבחור מורה נוסף/ת שונה מהמורה הראשי/ת', 'warning');
       return;
     }
 
@@ -749,6 +819,7 @@ const Schedule = (() => {
       day,
       period,
       teacher,
+      teacher2,
       className,
       subject,
       isPermanent,
@@ -774,7 +845,8 @@ const Schedule = (() => {
     if (window.SoundFX) SoundFX.playSuccess();
 
     const roomTitle = room === 'lab' ? 'חדר המחשבים' : 'הספרייה';
-    App.showToast(`השיבוץ ב${roomTitle} נשמר בהצלחה! ✨`, 'success');
+    const coMsg = teacher2 ? `שיעור משותף (${teacher} + ${teacher2})` : 'השיבוץ';
+    App.showToast(`${coMsg} ב${roomTitle} נשמר בהצלחה! ✨`, 'success');
   }
 
   function deleteCurrentBooking() {
@@ -843,23 +915,39 @@ const Schedule = (() => {
 
   function updateDropdowns() {
     const teacherSelect = document.getElementById('selectTeacher');
+    const teacher2Select = document.getElementById('selectTeacher2');
     const classSelect = document.getElementById('selectClass');
     const subjectSelect = document.getElementById('selectSubject');
 
+    // Alphabetical sort for Teachers (Hebrew locale-aware)
+    const teachers = [...Storage.getTeachers()].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+    );
+
     if (teacherSelect) {
-      const teachers = Storage.getTeachers();
-      teacherSelect.innerHTML = `<option value="">-- בחר/י מורה --</option>` +
+      teacherSelect.innerHTML = `<option value="">-- בחר/י מורה ראשי/ת --</option>` +
         teachers.map(t => `<option value="${t.name}">👤 ${t.name}</option>`).join('');
     }
 
+    if (teacher2Select) {
+      teacher2Select.innerHTML = `<option value="">-- ללא מורה נוסף (שיעור רגיל) --</option>` +
+        teachers.map(t => `<option value="${t.name}">🤝 ${t.name}</option>`).join('');
+    }
+
     if (classSelect) {
-      const classes = Storage.getClasses();
+      // Alphabetical sort for Classes (Hebrew locale-aware with numeric awareness, e.g. ז׳1, ז׳2, ז׳3... ח׳1...)
+      const classes = [...Storage.getClasses()].sort((a, b) => 
+        (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      );
       classSelect.innerHTML = `<option value="">-- בחר/י כיתה --</option>` +
         classes.map(c => `<option value="${c.name}">👥 ${c.name}</option>`).join('');
     }
 
     if (subjectSelect) {
-      const subjects = Storage.getSubjects();
+      // Alphabetical sort for Subjects (Hebrew locale-aware)
+      const subjects = [...Storage.getSubjects()].sort((a, b) => 
+        (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      );
       subjectSelect.innerHTML = `<option value="">-- ללא מקצוע / בחר מקצוע --</option>` +
         subjects.map(s => `<option value="${s.name}">📖 ${s.name}</option>`).join('');
     }
