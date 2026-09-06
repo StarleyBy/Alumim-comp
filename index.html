@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>שיבוץ מחשבים וספרייה • בית הספר עלומים חולון</title>
+  <meta name="description" content="לוח שיבוץ שבועי אינטראקטיבי וקומפקטי לסמארטפונים עבור חדר המחשבים והספרייה בבית הספר עלומים חולון">
+  <meta name="theme-color" content="#2563eb">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div class="app-container">
+
+    <!-- Admin Notification Banner (Visible when Tatiana activates Admin Mode) -->
+    <aside id="adminBanner" class="admin-banner" aria-label="באנר מצב מנהלת">
+      <div class="admin-banner-info">
+        <span>👑</span>
+        <span>מנהלת: <strong>טטיאנה</strong></span>
+      </div>
+      <div class="admin-banner-actions">
+        <button type="button" id="btnOpenAdminModal" class="btn btn-admin btn-sm" title="הגדרות ורשימות">
+          ⚙️ ניהול
+        </button>
+        <button type="button" id="btnExitAdmin" class="btn btn-secondary btn-sm" title="יציאה">
+          🚪 יציאה
+        </button>
+      </div>
+    </aside>
+
+    <!-- Header Section (Playful Israeli School Header) -->
+    <header class="site-header">
+      <!-- Top Row: Logo, School Name, Audio, Theme, Share -->
+      <div class="header-top-row">
+        <div class="brand-section">
+          <!-- Secret Logo: 5 quick taps activate Admin Mode for Tatiana -->
+          <div id="brandLogo" class="brand-logo" title="עלומים חולון - לחיצה 5 פעמים לכניסת טטיאנה" role="button" tabindex="0">
+            💻
+            <span id="brandLogoBadge" class="brand-logo-badge">מנהלת</span>
+          </div>
+          <div class="brand-text">
+            <div class="brand-title-row">
+              <h1>בית הספר עלומים חולון</h1>
+              <span class="school-doodle" title="שנת לימודים פורייה!">🚀</span>
+            </div>
+            <p>שיבוץ מחשבים וספרייה • שלום וברוכים הבאים! 🎒</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Background Melody Toggle Button -->
+          <button type="button" id="btnMelodyToggle" class="btn-icon" title="הפעלת מנגינת רקע נעימה" aria-label="מנגינת רקע">
+            🎶
+          </button>
+          <!-- Sound FX Toggle Button -->
+          <button type="button" id="btnSoundToggle" class="btn-icon" title="צלילי כפתורים" aria-label="צלילים">
+            🔊
+          </button>
+          <!-- Light / Dark Theme Toggle Button -->
+          <button type="button" id="btnThemeToggle" class="btn-icon" title="מצב כהה / בהיר" aria-label="החלף ערכת נושא">
+            🌙
+          </button>
+          <!-- Share / Export Button (Replaces print icon) -->
+          <button type="button" id="btnOpenShareModal" class="btn-icon" title="שיתוף והורדה (PDF, וואטסאפ, הדפסה...)" aria-label="שיתוף">
+            📤
+          </button>
+        </div>
+      </div>
+
+      <!-- Middle Row: Room Switcher (Segmented Control) -->
+      <nav id="roomSegmentedControl" class="room-segmented-control" aria-label="בחירת חלל לימוד">
+        <button type="button" class="room-tab-btn active" data-room="lab">
+          💻 חדר מחשבים
+        </button>
+        <button type="button" class="room-tab-btn" data-room="library">
+          📚 ספרייה
+        </button>
+      </nav>
+
+      <!-- Bottom Row: Week Navigator & Sync Status -->
+      <div class="week-navigator-row">
+        <button type="button" id="btnPrevWeek" class="btn-nav" title="שבוע קודם">◀</button>
+        <button type="button" id="btnTodayWeek" class="btn-nav" title="השבוע">השבוע</button>
+        <span id="weekDisplay" class="week-display" aria-live="polite">טוען...</span>
+        <button type="button" id="btnNextWeek" class="btn-nav" title="שבוע הבא">▶</button>
+        <input type="date" id="weekDatePicker" class="week-picker-input" style="display:none">
+        <button type="button" id="btnPickDate" class="btn-nav" title="לוח שנה">📅</button>
+
+        <div id="syncPill" class="sync-pill" title="סטטוס סנכרון">
+          <span class="sync-dot"></span>
+          <span id="syncLabel">מקומי</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content: Single Room View (Switched dynamically) -->
+    <main>
+      <!-- View 1: Computer Lab -->
+      <section id="viewLab" class="schedule-view active" aria-label="טבלת חדר מחשבים">
+        <div class="room-bar room-bar-lab">
+          <span class="room-bar-title">💻 חדר מחשבים (32 עמדות)</span>
+          <span id="labStats" class="room-bar-stats">0/48 תפוס</span>
+        </div>
+        <div class="table-wrapper">
+          <table id="tableLab" class="schedule-table"></table>
+        </div>
+      </section>
+
+      <!-- View 2: Library -->
+      <section id="viewLibrary" class="schedule-view" aria-label="טבלת ספרייה">
+        <div class="room-bar room-bar-lib">
+          <span class="room-bar-title">📚 ספרייה (15 מחשבים ניידים)</span>
+          <span id="libStats" class="room-bar-stats">0/48 תפוס</span>
+        </div>
+        <div class="table-wrapper">
+          <table id="tableLibrary" class="schedule-table"></table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <p>בית הספר עלומים חולון 🌟 רכזת תקשוב ומנהלת: <strong>טטיאנה</strong></p>
+    </footer>
+
+  </div>
+
+  <!-- ==========================================================================
+       Booking Modal (שיבוץ שיעור)
+       ========================================================================== -->
+  <div id="bookingModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span>📝</span>
+          <div>
+            <h3 id="bookingModalTitle" class="modal-title">שיבוץ שיעור</h3>
+            <div id="bookingModalSubtitle" class="modal-subtitle">פרטי השיבוץ</div>
+          </div>
+        </div>
+        <button type="button" id="bookingModalClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="bookingLockAlert" class="info-alert warning" style="display: none;"></div>
+
+        <form id="bookingForm">
+          <div class="form-group">
+            <label for="selectTeacher" class="form-label">
+              <span class="required">*</span> מורה:
+            </label>
+            <select id="selectTeacher" class="form-select" required>
+              <option value="">-- בחר/י מורה --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="selectClass" class="form-label">
+              <span class="required">*</span> כיתה:
+            </label>
+            <select id="selectClass" class="form-select" required>
+              <option value="">-- בחר/י כיתה --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="selectSubject" class="form-label">
+              מקצוע (אופציונלי):
+            </label>
+            <select id="selectSubject" class="form-select">
+              <option value="">-- ללא מקצוע / בחר מקצוע --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-checkbox-wrap">
+              <input type="checkbox" id="checkPermanent" class="form-checkbox">
+              <div>
+                <div class="checkbox-label-text">🔒 שיעור קבוע (חוזר בכל שבוע)</div>
+                <div class="checkbox-help">
+                  שיעור קבוע משתבץ בכל שבוע. לאחר סימון, רק טטיאנה תוכל לשנותו.
+                </div>
+              </div>
+            </label>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnDeleteBooking" class="btn btn-danger btn-sm" style="display: none;">
+          🗑️ מחק
+        </button>
+        <div style="display: flex; gap: 0.35rem; margin-right: auto;">
+          <button type="button" id="btnCancelBooking" class="btn btn-secondary btn-sm">ביטול</button>
+          <button type="submit" form="bookingForm" id="btnSaveBooking" class="btn btn-primary btn-sm">✓ שמור</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Share Modal (שיתוף לוח השעות)
+       ========================================================================== -->
+  <div id="shareModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span>📤</span>
+          <div>
+            <h3 id="shareModalTitle" class="modal-title">שיתוף והורדת לוח השעות</h3>
+            <div class="modal-subtitle">בית הספר עלומים חולון</div>
+          </div>
+        </div>
+        <button type="button" id="shareModalClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="info-alert info">
+          <span>בחרי כיצד לשתף או לשמור את לוח השיבוצים השבועי:</span>
+        </div>
+
+        <div class="share-grid">
+          <!-- 1. PDF Export (1 Page) -->
+          <button type="button" id="btnSharePdf" class="share-btn share-btn-pdf">
+            <span class="share-icon">📄</span>
+            <span>הורדת PDF (עמוד 1)</span>
+          </button>
+
+          <!-- 2. Direct Print -->
+          <button type="button" id="btnSharePrint" class="share-btn share-btn-print">
+            <span class="share-icon">🖨️</span>
+            <span>הדפסה ישירה</span>
+          </button>
+
+          <!-- 3. WhatsApp -->
+          <button type="button" id="btnShareWhatsapp" class="share-btn share-btn-whatsapp">
+            <span class="share-icon">💬</span>
+            <span>וואטסאפ (WhatsApp)</span>
+          </button>
+
+          <!-- 4. Telegram -->
+          <button type="button" id="btnShareTelegram" class="share-btn share-btn-telegram">
+            <span class="share-icon">✈️</span>
+            <span>טלגרם (Telegram)</span>
+          </button>
+
+          <!-- 5. Email -->
+          <button type="button" id="btnShareEmail" class="share-btn share-btn-email">
+            <span class="share-icon">✉️</span>
+            <span>שליחה באימייל</span>
+          </button>
+
+          <!-- 6. Facebook -->
+          <button type="button" id="btnShareFacebook" class="share-btn share-btn-facebook">
+            <span class="share-icon">👥</span>
+            <span>פייסבוק</span>
+          </button>
+
+          <!-- 7. Native Share / Other app -->
+          <button type="button" id="btnShareNative" class="share-btn share-btn-native">
+            <span class="share-icon">📱</span>
+            <span>שיתוף באפליקציות נוספות / העתקת קישור</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" onclick="ShareEngine.closeShareModal()" class="btn btn-secondary btn-sm" style="margin: 0 auto;">
+          סגור
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Admin Modal (ניהול מערכת - טטיאנה)
+       ========================================================================== -->
+  <div id="adminModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span>👑</span>
+          <div>
+            <h3 id="adminModalTitle" class="modal-title">ניהול מערכת - טטיאנה</h3>
+            <div class="modal-subtitle">עלומים חולון • עריכת מאגרים, צבעים וסנכרון</div>
+          </div>
+        </div>
+        <button type="button" id="adminModalClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <nav class="admin-tabs" aria-label="לשוניות ניהול">
+          <button type="button" class="admin-tab active" data-tab="teachers">👤 מורים</button>
+          <button type="button" class="admin-tab" data-tab="classes">👥 כיתות</button>
+          <button type="button" class="admin-tab" data-tab="subjects">📖 מקצועות</button>
+          <button type="button" class="admin-tab" data-tab="sync">☁️ Sheets וגיבוי</button>
+        </nav>
+
+        <!-- Tab 1: Teachers -->
+        <div id="tabContent-teachers" class="admin-tab-content active">
+          <div id="adminTeachersList" class="item-grid"></div>
+          <form id="formAddTeacher" class="add-item-form">
+            <input type="text" id="newTeacherName" class="form-input" placeholder="שם מורה חדש/ה" required>
+            <input type="color" id="newTeacherColor" class="color-picker-input" value="#e0f2fe" title="צבע תגית">
+            <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
+          </form>
+        </div>
+
+        <!-- Tab 2: Classes -->
+        <div id="tabContent-classes" class="admin-tab-content">
+          <div id="adminClassesList" class="item-grid"></div>
+          <form id="formAddClass" class="add-item-form">
+            <input type="text" id="newClassName" class="form-input" placeholder="שם כיתה (ז׳4, ח׳1...)" required>
+            <input type="color" id="newClassColor" class="color-picker-input" value="#fef08a" title="צבע תגית">
+            <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
+          </form>
+        </div>
+
+        <!-- Tab 3: Subjects -->
+        <div id="tabContent-subjects" class="admin-tab-content">
+          <div id="adminSubjectsList" class="item-grid"></div>
+          <form id="formAddSubject" class="add-item-form">
+            <input type="text" id="newSubjectName" class="form-input" placeholder="שם מקצוע חדש" required>
+            <input type="color" id="newSubjectColor" class="color-picker-input" value="#dbeafe" title="צבע תגית">
+            <button type="submit" class="btn btn-primary btn-sm">➕ הוסף</button>
+          </form>
+        </div>
+
+        <!-- Tab 4: Sync & Backup -->
+        <div id="tabContent-sync" class="admin-tab-content">
+          <div class="form-group">
+            <label for="gsUrlInput" class="form-label">כתובת Google Apps Script Web App:</label>
+            <input type="url" id="gsUrlInput" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" dir="ltr">
+          </div>
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 1rem;">
+            <button type="button" id="btnSaveSheetsUrl" class="btn btn-primary btn-sm">💾 שמור כתובת</button>
+            <button type="button" id="btnForcePull" class="btn btn-secondary btn-sm">⬇️ משוך מ-Sheets</button>
+            <button type="button" id="btnForcePush" class="btn btn-secondary btn-sm">⬆️ שלח ל-Sheets</button>
+          </div>
+          <hr style="border: none; border-top: 1px solid var(--border-light); margin: 0.75rem 0;">
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+            <button type="button" id="btnExportBackup" class="btn btn-secondary btn-sm">📥 הורד גיבוי JSON</button>
+            <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+              📤 טען גיבוי JSON
+              <input type="file" id="fileImportInput" accept=".json" style="display: none;">
+            </label>
+            <button type="button" id="btnClearNonPermanent" class="btn btn-danger btn-sm">🧹 אפס שיבוצים רגילים</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="adminModalFooterClose" class="btn btn-secondary btn-sm">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts in dependency order -->
+  <script src="js/audio.js"></script>
+  <script src="js/holidays.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
