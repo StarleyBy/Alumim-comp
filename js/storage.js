@@ -226,9 +226,10 @@ const Storage = (() => {
   function getTeachers() {
     try {
       const data = localStorage.getItem(KEY_TEACHERS);
-      return data ? JSON.parse(data) : DEFAULT_TEACHERS;
+      if (data) return JSON.parse(data);
+      return getGoogleSheetsUrl() ? [] : DEFAULT_TEACHERS;
     } catch {
-      return DEFAULT_TEACHERS;
+      return getGoogleSheetsUrl() ? [] : DEFAULT_TEACHERS;
     }
   }
 
@@ -241,9 +242,10 @@ const Storage = (() => {
   function getClasses() {
     try {
       const data = localStorage.getItem(KEY_CLASSES);
-      return data ? JSON.parse(data) : DEFAULT_CLASSES;
+      if (data) return JSON.parse(data);
+      return getGoogleSheetsUrl() ? [] : DEFAULT_CLASSES;
     } catch {
-      return DEFAULT_CLASSES;
+      return getGoogleSheetsUrl() ? [] : DEFAULT_CLASSES;
     }
   }
 
@@ -256,9 +258,10 @@ const Storage = (() => {
   function getSubjects() {
     try {
       const data = localStorage.getItem(KEY_SUBJECTS);
-      return data ? JSON.parse(data) : DEFAULT_SUBJECTS;
+      if (data) return JSON.parse(data);
+      return getGoogleSheetsUrl() ? [] : DEFAULT_SUBJECTS;
     } catch {
-      return DEFAULT_SUBJECTS;
+      return getGoogleSheetsUrl() ? [] : DEFAULT_SUBJECTS;
     }
   }
 
@@ -271,9 +274,10 @@ const Storage = (() => {
   function getSchedule() {
     try {
       const data = localStorage.getItem(KEY_SCHEDULE);
-      return data ? JSON.parse(data) : DEFAULT_SCHEDULE;
+      if (data) return JSON.parse(data);
+      return getGoogleSheetsUrl() ? {} : DEFAULT_SCHEDULE;
     } catch {
-      return DEFAULT_SCHEDULE;
+      return getGoogleSheetsUrl() ? {} : DEFAULT_SCHEDULE;
     }
   }
 
@@ -335,22 +339,23 @@ const Storage = (() => {
   function initDefaults() {
     checkUrlSyncParam();
 
+    const hasRemote = Boolean(getGoogleSheetsUrl());
+
     if (!localStorage.getItem(KEY_TEACHERS)) {
-      localStorage.setItem(KEY_TEACHERS, JSON.stringify(DEFAULT_TEACHERS));
+      localStorage.setItem(KEY_TEACHERS, JSON.stringify(hasRemote ? [] : DEFAULT_TEACHERS));
     }
     if (!localStorage.getItem(KEY_CLASSES)) {
-      localStorage.setItem(KEY_CLASSES, JSON.stringify(DEFAULT_CLASSES));
+      localStorage.setItem(KEY_CLASSES, JSON.stringify(hasRemote ? [] : DEFAULT_CLASSES));
     }
     if (!localStorage.getItem(KEY_SUBJECTS)) {
-      localStorage.setItem(KEY_SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
+      localStorage.setItem(KEY_SUBJECTS, JSON.stringify(hasRemote ? [] : DEFAULT_SUBJECTS));
     }
     if (!localStorage.getItem(KEY_SCHEDULE)) {
-      localStorage.setItem(KEY_SCHEDULE, JSON.stringify(DEFAULT_SCHEDULE));
+      localStorage.setItem(KEY_SCHEDULE, JSON.stringify(hasRemote ? {} : DEFAULT_SCHEDULE));
     }
 
     // Auto-pull from cloud on initial boot if URL is configured
-    const gsUrl = getGoogleSheetsUrl();
-    if (gsUrl) {
+    if (hasRemote) {
       setTimeout(() => {
         pullFromSheets().then((res) => {
           if (res && res.changed) {
