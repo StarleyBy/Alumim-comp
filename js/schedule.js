@@ -921,7 +921,7 @@ const Schedule = (() => {
 
     // Alphabetical sort for Teachers (Hebrew locale-aware)
     const teachers = [...Storage.getTeachers()].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
     );
 
     if (teacherSelect) {
@@ -937,7 +937,7 @@ const Schedule = (() => {
     if (classSelect) {
       // Alphabetical sort for Classes (Hebrew locale-aware with numeric awareness, e.g. ז׳1, ז׳2, ז׳3... ח׳1...)
       const classes = [...Storage.getClasses()].sort((a, b) => 
-        (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+        String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
       );
       classSelect.innerHTML = `<option value="">-- בחר/י כיתה --</option>` +
         classes.map(c => `<option value="${c.name}">👥 ${c.name}</option>`).join('');
@@ -946,7 +946,7 @@ const Schedule = (() => {
     if (subjectSelect) {
       // Alphabetical sort for Subjects (Hebrew locale-aware)
       const subjects = [...Storage.getSubjects()].sort((a, b) => 
-        (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+        String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
       );
       subjectSelect.innerHTML = `<option value="">-- ללא מקצוע / בחר מקצוע --</option>` +
         subjects.map(s => `<option value="${s.name}">📖 ${s.name}</option>`).join('');

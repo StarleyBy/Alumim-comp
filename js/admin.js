@@ -285,7 +285,7 @@ const Admin = (() => {
     if (!listEl) return;
 
     const teachers = [...Storage.getTeachers()].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
     );
     listEl.innerHTML = '';
 
@@ -457,7 +457,7 @@ const Admin = (() => {
     if (!listEl) return;
 
     const classes = [...Storage.getClasses()].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
     );
     listEl.innerHTML = '';
 
@@ -629,7 +629,7 @@ const Admin = (() => {
     if (!listEl) return;
 
     const subjects = [...Storage.getSubjects()].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'he', { sensitivity: 'base', numeric: true })
+      String(a.name || '').localeCompare(String(b.name || ''), 'he', { sensitivity: 'base', numeric: true })
     );
     listEl.innerHTML = '';
 

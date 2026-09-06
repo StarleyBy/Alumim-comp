@@ -60,7 +60,13 @@ const App = (() => {
     async function triggerSync() {
       const gsUrl = Storage.getGoogleSheetsUrl();
       if (!gsUrl) return;
-      await Storage.pullFromSheets();
+      const res = await Storage.pullFromSheets();
+      if (res && res.changed) {
+        if (window.Schedule) {
+          Schedule.renderTables();
+          Schedule.updateDropdowns();
+        }
+      }
     }
 
     // Immediate initial sync

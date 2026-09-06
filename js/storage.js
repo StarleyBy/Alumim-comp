@@ -14,6 +14,10 @@ const Storage = (() => {
   const KEY_GS_URL   = 'compalumim_gs_url';
   const KEY_ADMIN_ACTIVE = 'compalumim_admin_active';
 
+  // Default Global Google Sheets Apps Script URL
+  // Set this so ANY teacher opening the website on ANY device syncs automatically without setup!
+  const DEFAULT_GS_URL = 'https://script.google.com/macros/s/AKfycbwvBiV8ZioYvDb95OC5KfH0ca8A1PxUT_rQxxY1MnNckLdafRSgg9Lz9PdhvT9LUEtt/exec';
+
   // Default Teachers with customized background and text colors
   const DEFAULT_TEACHERS = [
     { id: 't1', name: 'טטיאנה (אחראית מחשבים)', color: '#ede9fe', textColor: '#6d28d9' },
@@ -201,6 +205,15 @@ const Storage = (() => {
           urlObj.searchParams.delete('sync');
           urlObj.searchParams.delete('gs');
           window.history.replaceState({}, '', urlObj.pathname + urlObj.search + urlObj.hash);
+          // Immediately trigger pull on startup and refresh schedule
+          setTimeout(() => {
+            pullFromSheets().then(() => {
+              if (window.Schedule) {
+                Schedule.renderTables();
+                Schedule.updateDropdowns();
+              }
+            });
+          }, 60);
         }
       }
     } catch (e) {
@@ -289,7 +302,7 @@ const Storage = (() => {
   }
 
   function getGoogleSheetsUrl() {
-    return localStorage.getItem(KEY_GS_URL) || '';
+    return localStorage.getItem(KEY_GS_URL) || DEFAULT_GS_URL || '';
   }
 
   function setGoogleSheetsUrl(url) {
@@ -333,6 +346,21 @@ const Storage = (() => {
     }
     if (!localStorage.getItem(KEY_SCHEDULE)) {
       localStorage.setItem(KEY_SCHEDULE, JSON.stringify(DEFAULT_SCHEDULE));
+    }
+
+    // Auto-pull from cloud on initial boot if URL is configured
+    const gsUrl = getGoogleSheetsUrl();
+    if (gsUrl) {
+      setTimeout(() => {
+        pullFromSheets().then((res) => {
+          if (res && res.changed) {
+            if (window.Schedule) {
+              Schedule.renderTables();
+              Schedule.updateDropdowns();
+            }
+          }
+        });
+      }, 50);
     }
   }
 
@@ -408,8 +436,18 @@ const Storage = (() => {
       }
 
       if (data.teachers && Array.isArray(data.teachers)) {
+        const sanitizedTeachers = data.teachers
+          .map(t => ({
+            ...t,
+            id: String(t.id || ''),
+            name: String(t.name !== undefined && t.name !== null ? t.name : '').trim(),
+            color: t.color || '#e0f2fe',
+            textColor: t.textColor || '#0369a1'
+          }))
+          .filter(t => t.name.length > 0);
+
         const currentTStr = localStorage.getItem(KEY_TEACHERS) || '[]';
-        const newTStr = JSON.stringify(data.teachers);
+        const newTStr = JSON.stringify(sanitizedTeachers);
         if (currentTStr !== newTStr) {
           localStorage.setItem(KEY_TEACHERS, newTStr);
           changed = true;
@@ -417,8 +455,18 @@ const Storage = (() => {
       }
 
       if (data.classes && Array.isArray(data.classes)) {
+        const sanitizedClasses = data.classes
+          .map(c => ({
+            ...c,
+            id: String(c.id || ''),
+            name: String(c.name !== undefined && c.name !== null ? c.name : '').trim(),
+            color: c.color || '#fef08a',
+            textColor: c.textColor || '#854d0e'
+          }))
+          .filter(c => c.name.length > 0);
+
         const currentCStr = localStorage.getItem(KEY_CLASSES) || '[]';
-        const newCStr = JSON.stringify(data.classes);
+        const newCStr = JSON.stringify(sanitizedClasses);
         if (currentCStr !== newCStr) {
           localStorage.setItem(KEY_CLASSES, newCStr);
           changed = true;
@@ -426,8 +474,18 @@ const Storage = (() => {
       }
 
       if (data.subjects && Array.isArray(data.subjects)) {
+        const sanitizedSubjects = data.subjects
+          .map(s => ({
+            ...s,
+            id: String(s.id || ''),
+            name: String(s.name !== undefined && s.name !== null ? s.name : '').trim(),
+            color: s.color || '#dbeafe',
+            textColor: s.textColor || '#1e40af'
+          }))
+          .filter(s => s.name.length > 0);
+
         const currentSStr = localStorage.getItem(KEY_SUBJECTS) || '[]';
-        const newSStr = JSON.stringify(data.subjects);
+        const newSStr = JSON.stringify(sanitizedSubjects);
         if (currentSStr !== newSStr) {
           localStorage.setItem(KEY_SUBJECTS, newSStr);
           changed = true;
