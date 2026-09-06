@@ -29,28 +29,62 @@ const App = (() => {
     // Setup Sync Status UI
     setupSyncUI();
 
+    // Listen to remote changes (from Google Sheets or other tabs via BroadcastChannel)
+    Storage.onRemoteUpdate((changedKeys) => {
+      if (window.Schedule && typeof Schedule.onRemoteDataChanged === 'function') {
+        Schedule.onRemoteDataChanged(changedKeys);
+      }
+      if (window.Schedule && typeof Schedule.updateDropdowns === 'function') {
+        Schedule.updateDropdowns();
+      }
+    });
+
     // Setup Global Key Shortcuts
     setupKeyboardShortcuts();
 
-    // Initial Pull if Google Sheets is connected
-    const gsUrl = Storage.getGoogleSheetsUrl();
-    if (gsUrl) {
-      Storage.pullFromSheets().then(changed => {
-        if (changed && window.Schedule) {
-          Schedule.renderTables();
-          Schedule.updateDropdowns();
-        }
-      });
+    // Start Real-Time Sync Loop if Google Sheets is connected
+    setupRealtimeSync();
+  }
 
-      // Background periodic pull every 60 seconds
-      setInterval(async () => {
-        const changed = await Storage.pullFromSheets();
-        if (changed && window.Schedule) {
-          Schedule.renderTables();
-          Schedule.updateDropdowns();
-        }
-      }, 60000);
+  /**
+   * Real-Time Smart Sync Loop
+   * - Polls every 3.5 seconds while page is visible
+   * - Immediately syncs on tab focus / phone screen unlock
+   */
+  function setupRealtimeSync() {
+    let pollIntervalId = null;
+
+    async function triggerSync() {
+      const gsUrl = Storage.getGoogleSheetsUrl();
+      if (!gsUrl) return;
+      await Storage.pullFromSheets();
     }
+
+    // Immediate initial sync
+    triggerSync();
+
+    // Fast polling loop: checks every 3.5 seconds when document is visible
+    pollIntervalId = setInterval(() => {
+      if (document.hidden) return; // Skip if tab is in background to save battery
+      triggerSync();
+    }, 3500);
+
+    // Immediate sync when tab becomes visible or screen is turned on
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        triggerSync();
+      }
+    });
+
+    // Immediate sync on window focus
+    window.addEventListener('focus', () => {
+      triggerSync();
+    });
+
+    // Immediate sync when network comes back online
+    window.addEventListener('online', () => {
+      triggerSync();
+    });
   }
 
   /**

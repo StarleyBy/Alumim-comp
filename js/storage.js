@@ -119,6 +119,77 @@ const Storage = (() => {
   let pendingPush = false;
   let pushDebounceTimer = null;
   let syncStatusListeners = [];
+  let remoteUpdateListeners = [];
+  let broadcastChannel = null;
+
+  // Initialize BroadcastChannel for 0ms same-device multi-tab synchronization
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      broadcastChannel = new BroadcastChannel('compalumim_bus');
+      broadcastChannel.onmessage = (event) => {
+        if (event && event.data && event.data.type === 'SCHEDULE_UPDATED') {
+          emitRemoteUpdate(event.data.changedKeys || []);
+        }
+      };
+    }
+  } catch (e) {
+    console.warn('BroadcastChannel initialization error:', e);
+  }
+
+  // Also listen to window storage event as a fallback
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === KEY_SCHEDULE || e.key === KEY_OVERRIDES || e.key === KEY_TEACHERS || e.key === KEY_CLASSES || e.key === KEY_SUBJECTS) {
+        emitRemoteUpdate([]);
+      }
+    });
+  }
+
+  function broadcastLocalChange(changedKeys = []) {
+    if (broadcastChannel) {
+      try {
+        broadcastChannel.postMessage({
+          type: 'SCHEDULE_UPDATED',
+          changedKeys,
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        console.warn('Broadcast post error:', e);
+      }
+    }
+  }
+
+  function onRemoteUpdate(cb) {
+    if (typeof cb === 'function') remoteUpdateListeners.push(cb);
+  }
+
+  function emitRemoteUpdate(changedKeys = []) {
+    remoteUpdateListeners.forEach(cb => {
+      try { cb(changedKeys); } catch (e) { console.error(e); }
+    });
+  }
+
+  // ── Auto-Detect Sync URL from Query Parameters (e.g. ?sync=... or ?gs=...) ──
+  function checkUrlSyncParam() {
+    try {
+      if (typeof window === 'undefined' || !window.location || !window.location.search) return;
+      const params = new URLSearchParams(window.location.search);
+      const rawSyncUrl = params.get('sync') || params.get('gs');
+      if (rawSyncUrl) {
+        const decoded = decodeURIComponent(rawSyncUrl).trim();
+        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+          setGoogleSheetsUrl(decoded);
+          // Clean up address bar without reloading
+          const urlObj = new URL(window.location);
+          urlObj.searchParams.delete('sync');
+          urlObj.searchParams.delete('gs');
+          window.history.replaceState({}, '', urlObj.pathname + urlObj.search + urlObj.hash);
+        }
+      }
+    } catch (e) {
+      console.warn('URL sync param check failed:', e);
+    }
+  }
 
   // ── Local Storage Accessors ──
 
@@ -133,6 +204,7 @@ const Storage = (() => {
 
   function saveTeachers(teachers) {
     localStorage.setItem(KEY_TEACHERS, JSON.stringify(teachers));
+    broadcastLocalChange();
     schedulePush();
   }
 
@@ -147,6 +219,7 @@ const Storage = (() => {
 
   function saveClasses(classes) {
     localStorage.setItem(KEY_CLASSES, JSON.stringify(classes));
+    broadcastLocalChange();
     schedulePush();
   }
 
@@ -161,6 +234,7 @@ const Storage = (() => {
 
   function saveSubjects(subjects) {
     localStorage.setItem(KEY_SUBJECTS, JSON.stringify(subjects));
+    broadcastLocalChange();
     schedulePush();
   }
 
@@ -173,8 +247,10 @@ const Storage = (() => {
     }
   }
 
-  function saveSchedule(schedule) {
+  function saveSchedule(schedule, changedKey = null) {
     localStorage.setItem(KEY_SCHEDULE, JSON.stringify(schedule));
+    const keys = changedKey ? [changedKey] : [];
+    broadcastLocalChange(keys);
     schedulePush();
   }
 
@@ -188,8 +264,10 @@ const Storage = (() => {
     }
   }
 
-  function saveOverrides(overrides) {
+  function saveOverrides(overrides, changedKey = null) {
     localStorage.setItem(KEY_OVERRIDES, JSON.stringify(overrides));
+    const keys = changedKey ? [changedKey] : [];
+    broadcastLocalChange(keys);
     schedulePush();
   }
 
@@ -225,6 +303,8 @@ const Storage = (() => {
 
   // ── Initialization Check ──
   function initDefaults() {
+    checkUrlSyncParam();
+
     if (!localStorage.getItem(KEY_TEACHERS)) {
       localStorage.setItem(KEY_TEACHERS, JSON.stringify(DEFAULT_TEACHERS));
     }
@@ -250,7 +330,7 @@ const Storage = (() => {
     });
   }
 
-  // ── Debounced Remote Push ──
+  // ── Rapid Debounced Remote Push (150ms for near-instant sync) ──
   function schedulePush() {
     const url = getGoogleSheetsUrl();
     if (!url) {
@@ -260,18 +340,18 @@ const Storage = (() => {
     if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
     pushDebounceTimer = setTimeout(() => {
       pushToSheets();
-    }, 1200);
+    }, 150);
   }
 
   // ── Pull Data from Google Sheets ──
   async function pullFromSheets() {
     const url = getGoogleSheetsUrl();
     if (!url) {
-      emitSyncStatus('local', 'מצב מקומי (ללא סנכרון ענן)');
-      return false;
+      emitSyncStatus('local', 'מצב מקומי');
+      return { changed: false, changedKeys: [] };
     }
 
-    emitSyncStatus('syncing', 'מסנכרן מול Google Sheets...');
+    emitSyncStatus('syncing', 'מסנכרן...');
     try {
       const response = await fetch(`${url}?v=${Date.now()}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -281,34 +361,71 @@ const Storage = (() => {
 
       const data = json.data || {};
       let changed = false;
+      const changedKeys = [];
+
+      // Compare schedule diff
+      if (data.schedule && typeof data.schedule === 'object') {
+        const currentStr = localStorage.getItem(KEY_SCHEDULE) || '{}';
+        const newStr = JSON.stringify(data.schedule);
+        if (currentStr !== newStr) {
+          const current = JSON.parse(currentStr);
+          const allKeys = new Set([...Object.keys(current), ...Object.keys(data.schedule)]);
+          allKeys.forEach(k => {
+            if (JSON.stringify(current[k]) !== JSON.stringify(data.schedule[k])) {
+              changedKeys.push(k);
+            }
+          });
+          localStorage.setItem(KEY_SCHEDULE, newStr);
+          changed = true;
+        }
+      }
+
+      // Compare overrides diff
+      if (data.overrides && typeof data.overrides === 'object') {
+        const currentOStr = localStorage.getItem(KEY_OVERRIDES) || '{}';
+        const newOStr = JSON.stringify(data.overrides);
+        if (currentOStr !== newOStr) {
+          localStorage.setItem(KEY_OVERRIDES, newOStr);
+          changed = true;
+        }
+      }
 
       if (data.teachers && Array.isArray(data.teachers)) {
-        localStorage.setItem(KEY_TEACHERS, JSON.stringify(data.teachers));
-        changed = true;
-      }
-      if (data.classes && Array.isArray(data.classes)) {
-        localStorage.setItem(KEY_CLASSES, JSON.stringify(data.classes));
-        changed = true;
-      }
-      if (data.subjects && Array.isArray(data.subjects)) {
-        localStorage.setItem(KEY_SUBJECTS, JSON.stringify(data.subjects));
-        changed = true;
-      }
-      if (data.schedule && typeof data.schedule === 'object') {
-        localStorage.setItem(KEY_SCHEDULE, JSON.stringify(data.schedule));
-        changed = true;
-      }
-      if (data.overrides && typeof data.overrides === 'object') {
-        localStorage.setItem(KEY_OVERRIDES, JSON.stringify(data.overrides));
-        changed = true;
+        const currentTStr = localStorage.getItem(KEY_TEACHERS) || '[]';
+        const newTStr = JSON.stringify(data.teachers);
+        if (currentTStr !== newTStr) {
+          localStorage.setItem(KEY_TEACHERS, newTStr);
+          changed = true;
+        }
       }
 
-      emitSyncStatus('synced', 'מסונכרן מלא מול Google Sheets ✓');
-      return changed;
+      if (data.classes && Array.isArray(data.classes)) {
+        const currentCStr = localStorage.getItem(KEY_CLASSES) || '[]';
+        const newCStr = JSON.stringify(data.classes);
+        if (currentCStr !== newCStr) {
+          localStorage.setItem(KEY_CLASSES, newCStr);
+          changed = true;
+        }
+      }
+
+      if (data.subjects && Array.isArray(data.subjects)) {
+        const currentSStr = localStorage.getItem(KEY_SUBJECTS) || '[]';
+        const newSStr = JSON.stringify(data.subjects);
+        if (currentSStr !== newSStr) {
+          localStorage.setItem(KEY_SUBJECTS, newSStr);
+          changed = true;
+        }
+      }
+
+      emitSyncStatus('synced', 'מסונכרן ✓');
+      if (changed) {
+        emitRemoteUpdate(changedKeys);
+      }
+      return { changed, changedKeys };
     } catch (err) {
       console.warn('Sheets pull error:', err);
-      emitSyncStatus('error', 'שגיאת חיבור ל-Google Sheets');
-      return false;
+      emitSyncStatus('error', 'שגיאת חיבור ל-Sheets');
+      return { changed: false, changedKeys: [] };
     }
   }
 
@@ -326,7 +443,7 @@ const Storage = (() => {
     }
 
     syncInProgress = true;
-    emitSyncStatus('syncing', 'שומר נתונים ב-Google Sheets...');
+    emitSyncStatus('syncing', 'שומר נתונים בענן...');
 
     try {
       const payload = {
@@ -351,10 +468,10 @@ const Storage = (() => {
       const json = await response.json();
       if (!json.ok) throw new Error(json.error || 'Server error');
 
-      emitSyncStatus('synced', 'נשמר בהצלחה ב-Google Sheets ✓');
+      emitSyncStatus('synced', 'נשמר בענן ✓');
     } catch (err) {
       console.warn('Sheets push error:', err);
-      emitSyncStatus('error', 'שגיאת שליחה ל-Google Sheets');
+      emitSyncStatus('error', 'שגיאת שליחה ל-Sheets');
     } finally {
       syncInProgress = false;
       if (pendingPush) {
@@ -422,6 +539,7 @@ const Storage = (() => {
     isAdminActive,
     setAdminActive,
     onSyncStatusChange,
+    onRemoteUpdate,
     pullFromSheets,
     pushToSheets,
     schedulePush,

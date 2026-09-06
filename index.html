@@ -74,15 +74,34 @@
         </div>
       </div>
 
-      <!-- Middle Row: Room Switcher (Segmented Control) -->
-      <nav id="roomSegmentedControl" class="room-segmented-control" aria-label="בחירת חלל לימוד">
-        <button type="button" class="room-tab-btn active" data-room="lab">
-          💻 חדר מחשבים
-        </button>
-        <button type="button" class="room-tab-btn" data-room="library">
-          📚 ספרייה
-        </button>
-      </nav>
+      <!-- Middle Row: Room Switcher & View Mode Controls -->
+      <div class="header-controls-row">
+        <nav id="roomSegmentedControl" class="room-segmented-control" aria-label="בחירת חלל לימוד">
+          <button type="button" class="room-tab-btn active" data-room="lab">
+            💻 חדר מחשבים
+          </button>
+          <button type="button" class="room-tab-btn" data-room="library">
+            📚 ספרייה
+          </button>
+        </nav>
+
+        <!-- View Mode Selector: Whole Week vs Single Day -->
+        <nav id="viewModeControl" class="view-mode-control" aria-label="מצב תצוגה">
+          <button type="button" class="view-mode-btn active" data-mode="week" id="btnModeWeek" title="תצוגת כל השבוע במבט אחד">
+            📅 שבוע שלם
+          </button>
+          <button type="button" class="view-mode-btn" data-mode="day" id="btnModeDay" title="תצוגת יום בודד עם גופן מוגדל">
+            📆 יום בודד
+          </button>
+        </nav>
+      </div>
+
+      <!-- Single-Day Selector Bar (Visible only in Single Day mode) -->
+      <div id="daySelectorBar" class="day-selector-bar" style="display: none;" aria-label="בחירת יום בשבוע">
+        <button type="button" id="btnPrevDay" class="btn-nav day-nav-btn" title="יום קודם">◀</button>
+        <div id="dayChipsList" class="day-chips-list"></div>
+        <button type="button" id="btnNextDay" class="btn-nav day-nav-btn" title="יום הבא">▶</button>
+      </div>
 
       <!-- Bottom Row: Week Navigator & Sync Status -->
       <div class="week-navigator-row">
@@ -339,8 +358,9 @@
             <label for="gsUrlInput" class="form-label">כתובת Google Apps Script Web App:</label>
             <input type="url" id="gsUrlInput" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" dir="ltr">
           </div>
-          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
             <button type="button" id="btnSaveSheetsUrl" class="btn btn-primary btn-sm">💾 שמור כתובת</button>
+            <button type="button" id="btnCopySyncShareLink" class="btn btn-primary btn-sm" title="העתקת קישור שכולל סנכרון מוכן לשליחה בוואטסאפ לכל המורים">🔗 העתק קישור מסונכרן למורים</button>
             <button type="button" id="btnForcePull" class="btn btn-secondary btn-sm">⬇️ משוך מ-Sheets</button>
             <button type="button" id="btnForcePush" class="btn btn-secondary btn-sm">⬆️ שלח ל-Sheets</button>
           </div>

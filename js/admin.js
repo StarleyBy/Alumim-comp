@@ -480,8 +480,8 @@ const Admin = (() => {
         Storage.setGoogleSheetsUrl(url);
         App.showToast('כתובת Google Sheets נשמרה', 'success');
         if (url) {
-          Storage.pullFromSheets().then(changed => {
-            if (changed) {
+          Storage.pullFromSheets().then(res => {
+            if (res && res.changed) {
               Schedule.renderTables();
               Schedule.updateDropdowns();
               renderTeachersList();
@@ -489,6 +489,26 @@ const Admin = (() => {
               renderSubjectsList();
             }
           });
+        }
+      });
+    }
+
+    // Copy pre-configured sync share link for all teachers
+    const btnCopySyncShareLink = document.getElementById('btnCopySyncShareLink');
+    if (btnCopySyncShareLink) {
+      btnCopySyncShareLink.addEventListener('click', async () => {
+        const gsUrl = Storage.getGoogleSheetsUrl();
+        if (!gsUrl) {
+          App.showToast('נא להזין ולשמור כתובת Google Sheets תחילה', 'warning');
+          return;
+        }
+        const baseUrl = window.location.origin + window.location.pathname;
+        const fullShareUrl = `${baseUrl}?sync=${encodeURIComponent(gsUrl)}`;
+        try {
+          await navigator.clipboard.writeText(fullShareUrl);
+          App.showToast('הקישור המסונכרן הועתק! שלחי אותו בוואטסאפ למורים 📋', 'success', 3500);
+        } catch {
+          prompt('הקישור המסונכרן למורים:', fullShareUrl);
         }
       });
     }

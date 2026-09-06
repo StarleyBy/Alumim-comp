@@ -32,11 +32,21 @@ const Schedule = (() => {
   // Active editing slot reference
   let activeEditingSlot = null;
 
+  // View Mode: 'week' (Full Week) or 'day' (Single Day with large typography)
+  const KEY_VIEW_MODE = 'compalumim_view_mode';
+  let activeViewMode = localStorage.getItem(KEY_VIEW_MODE) || 'week';
+
+  // Active day index for Single-Day view (0=Sunday .. 5=Friday). If Saturday, default to Sunday (0).
+  const initialDay = (new Date()).getDay();
+  let activeDayIndex = (initialDay >= 0 && initialDay <= 5) ? initialDay : 0;
+
   /**
    * Initialize Schedule Engine
    */
   function init() {
     setupRoomSwitcher();
+    setupViewModeSwitcher();
+    setupDaySelectorBar();
     setupWeekNavigator();
     setupBookingModal();
     updateDropdowns();
@@ -76,6 +86,94 @@ const Schedule = (() => {
 
   function getActiveRoom() {
     return activeRoom;
+  }
+
+  /**
+   * View Mode Switcher: 'week' (Whole Week) vs 'day' (Single Day)
+   */
+  function setupViewModeSwitcher() {
+    const btnWeek = document.getElementById('btnModeWeek');
+    const btnDay = document.getElementById('btnModeDay');
+    const daySelectorBar = document.getElementById('daySelectorBar');
+
+    if (btnWeek) {
+      btnWeek.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        switchViewMode('week');
+      });
+    }
+
+    if (btnDay) {
+      btnDay.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        switchViewMode('day');
+      });
+    }
+
+    // Initialize UI to match stored activeViewMode
+    if (btnWeek) btnWeek.classList.toggle('active', activeViewMode === 'week');
+    if (btnDay) btnDay.classList.toggle('active', activeViewMode === 'day');
+    if (daySelectorBar) {
+      daySelectorBar.style.display = activeViewMode === 'day' ? 'flex' : 'none';
+    }
+  }
+
+  function switchViewMode(mode) {
+    activeViewMode = mode;
+    localStorage.setItem(KEY_VIEW_MODE, mode);
+
+    const btnWeek = document.getElementById('btnModeWeek');
+    const btnDay = document.getElementById('btnModeDay');
+    const daySelectorBar = document.getElementById('daySelectorBar');
+
+    if (btnWeek) btnWeek.classList.toggle('active', mode === 'week');
+    if (btnDay) btnDay.classList.toggle('active', mode === 'day');
+
+    if (daySelectorBar) {
+      daySelectorBar.style.display = mode === 'day' ? 'flex' : 'none';
+    }
+
+    renderTables();
+  }
+
+  function getActiveViewMode() {
+    return activeViewMode;
+  }
+
+  /**
+   * Setup Day Selector Bar controls (prev / next day buttons)
+   */
+  function setupDaySelectorBar() {
+    const btnPrev = document.getElementById('btnPrevDay');
+    const btnNext = document.getElementById('btnNextDay');
+
+    if (btnPrev) {
+      btnPrev.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        if (activeDayIndex > 0) {
+          activeDayIndex--;
+        } else {
+          // Go to previous week Friday
+          currentDate.setDate(currentDate.getDate() - 7);
+          activeDayIndex = 5;
+        }
+        renderTables();
+      });
+    }
+
+    if (btnNext) {
+      btnNext.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        if (activeDayIndex < 5) {
+          activeDayIndex++;
+        } else {
+          // Go to next week Sunday
+          currentDate.setDate(currentDate.getDate() + 7);
+          activeDayIndex = 0;
+        }
+        renderTables();
+      });
+    }
   }
 
   /**
@@ -217,24 +315,65 @@ const Schedule = (() => {
   }
 
   /**
-   * Render schedule tables
+   * Render schedule tables (Week view or Single-Day view)
    */
   function renderTables() {
     updateWeekDisplay();
     const weekDates = getWeekDates();
+    const barEl = document.getElementById('daySelectorBar');
 
-    renderSingleRoomTable('lab', 'tableLab', weekDates);
-    renderSingleRoomTable('library', 'tableLibrary', weekDates);
+    if (activeViewMode === 'day') {
+      if (barEl) barEl.style.display = 'flex';
+      renderDaySelectorBar(weekDates);
+      const activeDay = weekDates[activeDayIndex] || weekDates[0];
+      renderSingleRoomDayTable('lab', 'tableLab', activeDay);
+      renderSingleRoomDayTable('library', 'tableLibrary', activeDay);
+    } else {
+      if (barEl) barEl.style.display = 'none';
+      renderSingleRoomWeekTable('lab', 'tableLab', weekDates);
+      renderSingleRoomWeekTable('library', 'tableLibrary', weekDates);
+    }
+
     updateRoomStats('lab', weekDates);
     updateRoomStats('library', weekDates);
   }
 
   /**
-   * Render a single room schedule table
+   * Render Day Selector Chips for Single-Day Mode
    */
-  function renderSingleRoomTable(room, tableId, weekDates) {
+  function renderDaySelectorBar(weekDates) {
+    const listEl = document.getElementById('dayChipsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = weekDates.map((d, i) => {
+      const isActive = i === activeDayIndex;
+      const todayClass = d.isToday ? 'is-today-chip' : '';
+      const activeClass = isActive ? 'active' : '';
+      return `
+        <button type="button" class="day-chip ${activeClass} ${todayClass}" data-day-index="${i}" title="${d.fullName}">
+          <span class="day-chip-name">${d.name}</span>
+          <span class="day-chip-date">${d.formattedDate}</span>
+        </button>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.day-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.SoundFX) SoundFX.playClick();
+        activeDayIndex = parseInt(btn.dataset.dayIndex, 10);
+        renderTables();
+      });
+    });
+  }
+
+  /**
+   * Render a single room schedule table in Full Week mode (6 days)
+   */
+  function renderSingleRoomWeekTable(room, tableId, weekDates) {
     const tableEl = document.getElementById(tableId);
     if (!tableEl) return;
+
+    tableEl.className = 'schedule-table';
 
     // Header: Period + 6 Days
     let theadHtml = `
@@ -273,7 +412,7 @@ const Schedule = (() => {
     PERIODS.forEach(periodNum => {
       tbodyHtml += `<tr>`;
 
-      // Period cell: Just the number!
+      // Period cell: Just the number
       tbodyHtml += `
         <td class="period-cell" title="שיעור ${periodNum}">
           ${periodNum}
@@ -290,7 +429,7 @@ const Schedule = (() => {
               data-room="${room}" 
               data-day="${day.dayIndex}" 
               data-period="${periodNum}">
-            ${renderSlotContent(slotData)}
+            ${renderSlotContent(slotData, false)}
           </td>
         `;
       });
@@ -299,7 +438,71 @@ const Schedule = (() => {
     });
 
     tbodyHtml += `</tbody>`;
+    tableEl.innerHTML = theadHtml + tbodyHtml;
 
+    // Attach click listeners
+    tableEl.querySelectorAll('.slot-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const r = cell.dataset.room;
+        const d = parseInt(cell.dataset.day, 10);
+        const p = parseInt(cell.dataset.period, 10);
+        handleSlotClick(r, d, p);
+      });
+    });
+  }
+
+  /**
+   * Render a single room schedule table in Single-Day mode (1 wide column, large typography)
+   */
+  function renderSingleRoomDayTable(room, tableId, dayInfo) {
+    const tableEl = document.getElementById(tableId);
+    if (!tableEl) return;
+
+    tableEl.className = 'schedule-table single-day-mode';
+
+    let holidayIcon = '';
+    if (dayInfo.holiday) {
+      const icon = dayInfo.holiday.isChag ? '🎉' : dayInfo.holiday.isMemorial ? '🕯️' : '✨';
+      holidayIcon = ` <span class="day-holiday-dot" title="${dayInfo.holiday.name}">${icon}</span>`;
+    }
+
+    let theadHtml = `
+      <thead>
+        <tr>
+          <th class="col-period">שיעור</th>
+          <th class="col-single-day ${dayInfo.isToday ? 'is-today' : ''}">
+            <div class="day-header-cell">
+              <span class="day-name">${dayInfo.fullName} (${dayInfo.formattedDate})${holidayIcon}</span>
+            </div>
+          </th>
+        </tr>
+      </thead>
+    `;
+
+    let tbodyHtml = `<tbody>`;
+
+    PERIODS.forEach(periodNum => {
+      const slotData = getSlotData(room, dayInfo.dayIndex, periodNum);
+
+      tbodyHtml += `
+        <tr>
+          <td class="period-cell" title="שיעור ${periodNum}">
+            <div class="period-label-wrap">
+              <span class="period-num">${periodNum}</span>
+              <span class="period-sublabel">שיעור</span>
+            </div>
+          </td>
+          <td class="slot-cell" 
+              data-room="${room}" 
+              data-day="${dayInfo.dayIndex}" 
+              data-period="${periodNum}">
+            ${renderSlotContent(slotData, true, periodNum)}
+          </td>
+        </tr>
+      `;
+    });
+
+    tbodyHtml += `</tbody>`;
     tableEl.innerHTML = theadHtml + tbodyHtml;
 
     // Attach click listeners
@@ -315,10 +518,13 @@ const Schedule = (() => {
 
   /**
    * Render Slot Content: Empty vs Occupied Card
-   * Includes adaptive text classes and corner lock icon 🔒
+   * Includes same-line lock icon 🔒 with teacher's name and large typography for single-day mode
    */
-  function renderSlotContent(slot) {
+  function renderSlotContent(slot, isSingleDay = false, periodNum = null) {
     if (!slot) {
+      if (isSingleDay) {
+        return `<div class="slot-empty" title="לחץ לשיבוץ">+ פנוי לשיבוץ ${periodNum ? '(שיעור ' + periodNum + ')' : ''}</div>`;
+      }
       return `<div class="slot-empty" title="לחץ לשיבוץ">+</div>`;
     }
 
@@ -332,9 +538,10 @@ const Schedule = (() => {
     const classColor = classMeta.color || '#fef3c7';
     const classText = classMeta.textColor || Admin.getContrastColor(classColor);
 
-    // Adaptive font class based on teacher name length
-    const tLen = (slot.teacher || '').length;
-    const teacherFontClass = tLen > 11 ? 'len-long' : tLen > 6 ? 'len-mid' : 'len-short';
+    // Same-line lock icon (no separate row / line wasted!)
+    const lockHtml = slot.isPermanent
+      ? `<span class="lock-inline" title="שיעור קבוע">🔒</span> `
+      : '';
 
     let subjectBadge = '';
     if (subjectMeta) {
@@ -350,17 +557,33 @@ const Schedule = (() => {
       `;
     }
 
-    // Corner lock icon (no wasted row!)
-    const lockIcon = slot.isPermanent
-      ? `<span class="slot-lock-icon" title="שיעור קבוע">🔒</span>`
-      : '';
+    if (isSingleDay) {
+      return `
+        <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''}" title="${slot.teacher} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
+          <div class="slot-card-top">
+            <span class="badge-item badge-teacher" style="background-color: ${teacherColor}; color: ${teacherText}">
+              ${lockHtml}<span>${slot.teacher}</span>
+            </span>
+          </div>
+          <div class="slot-meta-row">
+            <span class="badge-item badge-class" style="background-color: ${classColor}; color: ${classText}">
+              ${slot.className}
+            </span>
+            ${subjectBadge}
+          </div>
+        </div>
+      `;
+    }
+
+    // Week view with adaptive font sizing and same-line lock
+    const tLen = (slot.teacher || '').length;
+    const teacherFontClass = tLen > 11 ? 'len-long' : tLen > 6 ? 'len-mid' : 'len-short';
 
     return `
       <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''}" title="${slot.teacher} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
-        ${lockIcon}
-        <!-- Teacher Badge with adaptive text sizing & custom color -->
+        <!-- Teacher Badge with same-line lock icon -->
         <span class="badge-item badge-teacher ${teacherFontClass}" style="background-color: ${teacherColor}; color: ${teacherText}">
-          ${slot.teacher}
+          ${lockHtml}${slot.teacher}
         </span>
 
         <!-- Class & Subject Mini Row -->
@@ -535,13 +758,13 @@ const Schedule = (() => {
     const schedule = Storage.getSchedule();
     const baseKey = `${room}_${day}_${period}`;
     schedule[baseKey] = newBooking;
-    Storage.saveSchedule(schedule);
+    Storage.saveSchedule(schedule, baseKey);
 
     const overrides = Storage.getOverrides();
     const overrideKey = `${weekKey}_${room}_${day}_${period}`;
     if (overrides[overrideKey] !== undefined) {
       delete overrides[overrideKey];
-      Storage.saveOverrides(overrides);
+      Storage.saveOverrides(overrides, overrideKey);
     }
 
     closeBookingModal();
@@ -572,12 +795,12 @@ const Schedule = (() => {
     const baseKey = `${room}_${day}_${period}`;
 
     delete schedule[baseKey];
-    Storage.saveSchedule(schedule);
+    Storage.saveSchedule(schedule, baseKey);
 
     const overrides = Storage.getOverrides();
     const overrideKey = `${weekKey}_${room}_${day}_${period}`;
     delete overrides[overrideKey];
-    Storage.saveOverrides(overrides);
+    Storage.saveOverrides(overrides, overrideKey);
 
     closeBookingModal();
     renderTables();
@@ -586,6 +809,36 @@ const Schedule = (() => {
     if (window.SoundFX) SoundFX.playDelete();
 
     App.showToast('השיבוץ בוטל', 'info');
+  }
+
+  function highlightUpdatedSlot(slotKey) {
+    if (!slotKey) return;
+    const parts = slotKey.split('_');
+    let r, d, p;
+    if (parts.length === 3) {
+      [r, d, p] = parts;
+    } else if (parts.length >= 4) {
+      // Overrides key format: week_room_day_period
+      r = parts[1];
+      d = parts[2];
+      p = parts[3];
+    }
+    if (r && d !== undefined && p !== undefined) {
+      const selector = `.slot-cell[data-room="${r}"][data-day="${d}"][data-period="${p}"]`;
+      document.querySelectorAll(selector).forEach(cell => {
+        cell.classList.remove('slot-updated-flash');
+        void cell.offsetWidth;
+        cell.classList.add('slot-updated-flash');
+        setTimeout(() => cell.classList.remove('slot-updated-flash'), 2200);
+      });
+    }
+  }
+
+  function onRemoteDataChanged(changedKeys = []) {
+    renderTables();
+    if (Array.isArray(changedKeys) && changedKeys.length > 0) {
+      changedKeys.forEach(k => highlightUpdatedSlot(k));
+    }
   }
 
   function updateDropdowns() {
@@ -618,7 +871,11 @@ const Schedule = (() => {
     updateDropdowns,
     getWeekDates,
     switchRoom,
-    getActiveRoom
+    getActiveRoom,
+    switchViewMode,
+    getActiveViewMode,
+    highlightUpdatedSlot,
+    onRemoteDataChanged
   };
 })();
 

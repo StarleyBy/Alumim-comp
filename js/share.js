@@ -51,11 +51,17 @@ const ShareEngine = (() => {
       ? 'ספריית בית הספר'
       : 'חדר המחשבים';
 
-    const url = window.location.href;
-    const title = `${schoolName} • שיבוץ שבועי (${roomName})`;
-    const text = `📋 לוח שיבוצים שבועי עבור ${roomName} לשבוע ${datesStr} ב${schoolName}:\n${url}`;
+    // Automatically append the sync URL so any teacher opening the link connects to the same cloud data!
+    const gsUrl = Storage.getGoogleSheetsUrl();
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = gsUrl
+      ? `${baseUrl}?sync=${encodeURIComponent(gsUrl)}`
+      : window.location.href;
 
-    return { title, text, url, datesStr, roomName, schoolName };
+    const title = `${schoolName} • שיבוץ שבועי (${roomName})`;
+    const text = `📋 לוח שיבוצים שבועי עבור ${roomName} לשבוע ${datesStr} ב${schoolName}:\n${shareUrl}`;
+
+    return { title, text, url: shareUrl, datesStr, roomName, schoolName };
   }
 
   function setupShareButtons() {
