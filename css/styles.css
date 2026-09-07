@@ -54,9 +54,9 @@
   --admin-purple: #7c3aed;
   --admin-purple-bg: #f5f3ff;
 
-  /* Cell Height & Period Width */
-  --cell-height: 52px;
-  --period-col-width: 28px;
+  /* Cell Height & Period Width (Comfortable Desktop Reading) */
+  --cell-height: 66px;
+  --period-col-width: 32px;
 
   /* Typography */
   --font-main: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -503,97 +503,126 @@ body {
    ========================================================================== */
 .header-controls-row {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
   width: 100%;
 }
 
-.room-segmented-control {
-  display: flex;
-  background: var(--bg-muted);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 2px;
-  gap: 2px;
-  flex: 1.15;
+/* ── Interactive Capsule Toggle Switches (Room & View Mode) ── */
+.pill-toggle-container {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  transition: transform var(--transition-fast);
 }
 
-.room-tab-btn {
+.pill-toggle-container:focus-visible .pill-toggle-track {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4);
+}
+
+.pill-toggle-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  background: var(--bg-muted);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-full);
+  padding: 2.5px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: all var(--transition-normal);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .pill-toggle-track {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Sliding Indicator Thumb */
+.pill-toggle-thumb {
+  position: absolute;
+  top: 2.5px;
+  bottom: 2.5px;
+  width: calc(50% - 2.5px);
+  border-radius: var(--radius-full);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.26s cubic-bezier(0.34, 1.45, 0.64, 1), background 0.22s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Room Switcher: RTL positions
+   data-active="lab" -> thumb sits on right (translateX(0%))
+   data-active="library" -> thumb sits on left (translateX(-100%)) */
+#roomToggleTrack[data-active="lab"] .pill-toggle-thumb {
+  transform: translateX(0%);
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+#roomToggleTrack[data-active="library"] .pill-toggle-thumb {
+  transform: translateX(-100%);
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
+}
+
+/* View Mode Switcher: RTL positions
+   data-active="week" -> thumb sits on right (translateX(0%))
+   data-active="day" -> thumb sits on left (translateX(-100%)) */
+#viewModeToggleTrack[data-active="week"] .pill-toggle-thumb {
+  transform: translateX(0%);
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+#viewModeToggleTrack[data-active="day"] .pill-toggle-thumb {
+  transform: translateX(-100%);
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+
+/* Switch Option Sides */
+.pill-toggle-side {
+  position: relative;
   flex: 1;
-  border: none;
-  background: transparent;
-  font-family: var(--font-heading);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  padding: 0.35rem 0.4rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
-}
-
-.room-tab-btn:active {
-  transform: scale(0.98);
-}
-
-.room-tab-btn.active {
-  background: var(--bg-surface);
-  color: var(--text-main);
-  box-shadow: var(--shadow-sm);
-}
-
-.room-tab-btn[data-room="lab"].active {
-  color: var(--lab-accent);
-}
-
-.room-tab-btn[data-room="library"].active {
-  color: var(--lib-accent);
-}
-
-/* View Mode Switcher (Week / Day) */
-.view-mode-control {
-  display: flex;
-  background: var(--bg-muted);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 2px;
-  gap: 2px;
-  flex: 0.85;
-}
-
-.view-mode-btn {
-  flex: 1;
-  border: none;
-  background: transparent;
+  gap: 5px;
   font-family: var(--font-heading);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-muted);
-  padding: 0.35rem 0.3rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  transition: all var(--transition-fast);
+  border-radius: var(--radius-full);
+  z-index: 2;
+  transition: color 0.2s ease;
   white-space: nowrap;
 }
 
-.view-mode-btn:active {
-  transform: scale(0.98);
+.pill-toggle-side .pill-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
 }
 
-.view-mode-btn.active {
-  background: var(--bg-surface);
-  color: var(--primary);
-  box-shadow: var(--shadow-sm);
+.pill-toggle-side.active {
+  color: #ffffff !important;
   font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.pill-toggle-side.active .pill-toggle-icon {
+  transform: scale(1.12);
+}
+
+.pill-toggle-side:hover:not(.active) {
+  color: var(--text-main);
+}
+
+.pill-toggle-container:active {
+  transform: scale(0.985);
 }
 
 /* Single-Day Selector Bar */
@@ -959,67 +988,86 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 1.5px;
-  padding: 1px 2px;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 2.5px 3.5px;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-card);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+[data-theme="dark"] .slot-card {
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.slot-cell:hover .slot-card {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.09);
+  border-color: var(--primary-light);
+  z-index: 5;
 }
 
 /* Inline Lock Icon (Sitting on the exact same row as the teacher's name) */
 .lock-inline {
   display: inline-block;
-  font-size: 0.88em;
+  font-size: 0.9em;
   margin-left: 2px;
   vertical-align: baseline;
   line-height: 1;
 }
 
 .slot-card.is-permanent {
-  border-right: 2.5px solid var(--admin-gold);
+  border-right: 3px solid var(--admin-gold);
+}
+
+.slot-card.is-coteaching {
+  border-left: 3px solid #ec4899; /* Pink collaboration badge accent */
 }
 
 /* ==========================================================================
-   Adaptive Text Badges (Auto-Fit Names & Disciplines)
+   Adaptive Text Badges (Large, Highly-Readable Typography)
    ========================================================================== */
 .badge-item {
   display: block;
-  border-radius: 3px;
-  line-height: 1.05;
+  border-radius: 4px;
+  line-height: 1.15;
   text-align: center;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
-/* Teacher Badge with Adaptive Font Sizes & Same-line Lock */
+/* Teacher Badge with Generous Desktop Font Sizes & Same-line Lock */
 .badge-teacher {
   font-weight: 700;
-  padding: 1px 2px;
+  padding: 1.5px 4px;
   word-break: break-word;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  line-height: 1.1;
+  line-height: 1.15;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11.5px;
 }
 
 .badge-teacher.len-short {
-  font-size: 9.5px;
+  font-size: 12.5px;
 }
 
 .badge-teacher.len-mid {
-  font-size: 8.25px;
+  font-size: 11.5px;
 }
 
 .badge-teacher.len-long {
-  font-size: 7.2px;
-  line-height: 1.02;
+  font-size: 10.5px;
+  line-height: 1.1;
 }
 
 /* Co-Teaching Group in Week View */
@@ -1027,37 +1075,40 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 1px;
+  gap: 1.5px;
   width: 100%;
   overflow: hidden;
 }
 
-.teachers-group-week .badge-teacher {
-  max-width: 100%;
-  white-space: nowrap;
+.teachers-group-week.single-teacher-wrap {
+  margin: auto 0 1px 0;
+}
+
+.co-teacher-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0.5px 2px;
-  line-height: 1.05;
-  font-size: 7.2px;
-  border-radius: 2px;
 }
 
-.teachers-group-week .badge-plus {
-  display: none;
-}
-
-/* Co-Teaching Indicator Pill in Week View */
-.co-teaching-pill {
-  position: absolute;
-  top: 1px;
-  left: 2px;
-  font-size: 8px;
+.co-badge-icon {
+  font-size: 11px;
   line-height: 1;
-  opacity: 0.95;
-  z-index: 3;
+  flex-shrink: 0;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
-  user-select: none;
+}
+
+.co-teacher-row .badge-teacher {
+  flex: 1;
+  font-size: 10.5px;
+  padding: 1px 3px;
+  line-height: 1.1;
+  border-radius: 3px;
+}
+
+.co-teacher-row.co-secondary .badge-teacher {
+  margin-right: 14px; /* Align with primary teacher name next to the handshake icon */
 }
 
 /* Class & Subject Mini Row */
@@ -1065,34 +1116,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 3px;
   width: 100%;
   overflow: hidden;
 }
 
 .badge-class {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
-  padding: 0 2px;
+  padding: 1px 5px;
   flex-shrink: 0;
   white-space: nowrap;
+  border-radius: 3px;
 }
 
 .badge-subject {
+  font-size: 10px;
   font-weight: 600;
-  padding: 0 2px;
+  padding: 1px 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  border-radius: 3px;
 }
 
 .badge-subject.subj-short {
-  font-size: 7.5px;
+  font-size: 10px;
 }
 
 .badge-subject.subj-long {
-  font-size: 6.8px;
+  font-size: 9px;
 }
 
 /* ==========================================================================
@@ -1376,6 +1430,103 @@ body {
     font-size: 0.92rem;
     padding: 3px 14px;
     min-width: 90px;
+  }
+}
+
+/* Responsive adjustments for Week Mode on smaller viewports */
+@media (max-width: 768px) {
+  :root {
+    --cell-height: 58px;
+    --period-col-width: 28px;
+  }
+
+  .pill-toggle-track {
+    height: 36px;
+  }
+
+  .pill-toggle-side {
+    font-size: 0.78rem;
+    gap: 4px;
+  }
+
+  .badge-teacher {
+    font-size: 10px;
+  }
+
+  .badge-teacher.len-short {
+    font-size: 10.5px;
+  }
+
+  .badge-teacher.len-mid {
+    font-size: 9.5px;
+  }
+
+  .badge-teacher.len-long {
+    font-size: 8.5px;
+  }
+
+  .co-teacher-row .badge-teacher {
+    font-size: 9px;
+  }
+
+  .co-badge-icon {
+    font-size: 9.5px;
+  }
+
+  .badge-class {
+    font-size: 9.5px;
+    padding: 0.5px 3px;
+  }
+
+  .badge-subject {
+    font-size: 8.5px;
+    padding: 0.5px 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --cell-height: 54px;
+    --period-col-width: 24px;
+  }
+
+  .header-controls-row {
+    gap: 5px;
+  }
+
+  .pill-toggle-track {
+    height: 34px;
+    padding: 2px;
+  }
+
+  .pill-toggle-side {
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+
+  .pill-toggle-side .pill-toggle-icon {
+    font-size: 0.82rem;
+  }
+
+  .badge-teacher {
+    font-size: 8.75px;
+    padding: 1px 2px;
+  }
+
+  .badge-teacher.len-long {
+    font-size: 7.75px;
+  }
+
+  .co-teacher-row .badge-teacher {
+    font-size: 8px;
+  }
+
+  .badge-class {
+    font-size: 8.5px;
+  }
+
+  .badge-subject {
+    font-size: 7.5px;
   }
 }
 
@@ -1930,6 +2081,8 @@ body {
 
   .admin-banner,
   .header-actions,
+  .header-controls-row,
+  .pill-toggle-container,
   .room-segmented-control,
   .week-navigator-row button,
   .modal-backdrop,

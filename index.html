@@ -92,26 +92,37 @@
         </div>
       </div>
 
-      <!-- Middle Row: Room Switcher & View Mode Controls -->
+      <!-- Middle Row: 2 Elegant Toggle Switches (Room & View Mode) -->
       <div class="header-controls-row">
-        <nav id="roomSegmentedControl" class="room-segmented-control" aria-label="בחירת חלל לימוד">
-          <button type="button" class="room-tab-btn active" data-room="lab">
-            💻 חדר מחשבים
-          </button>
-          <button type="button" class="room-tab-btn" data-room="library">
-            📚 ספרייה
-          </button>
-        </nav>
+        <!-- Switch 1: Room Switcher (Computer Lab ⇄ Library) -->
+        <div id="roomToggleSwitch" class="pill-toggle-container" role="button" tabindex="0" aria-label="החלפת חלל: חדר מחשבים או ספרייה" title="לחץ להחלפה בין חדר מחשבים לספרייה">
+          <div class="pill-toggle-track" id="roomToggleTrack" data-active="lab">
+            <span class="pill-toggle-thumb" aria-hidden="true"></span>
+            <div class="pill-toggle-side side-lab active" data-room="lab" id="btnToggleLab">
+              <span class="pill-toggle-icon">💻</span>
+              <span class="pill-toggle-text">חדר מחשבים</span>
+            </div>
+            <div class="pill-toggle-side side-library" data-room="library" id="btnToggleLib">
+              <span class="pill-toggle-icon">📚</span>
+              <span class="pill-toggle-text">ספרייה</span>
+            </div>
+          </div>
+        </div>
 
-        <!-- View Mode Selector: Whole Week vs Single Day -->
-        <nav id="viewModeControl" class="view-mode-control" aria-label="מצב תצוגה">
-          <button type="button" class="view-mode-btn active" data-mode="week" id="btnModeWeek" title="תצוגת כל השבוע במבט אחד">
-            📅 שבוע שלם
-          </button>
-          <button type="button" class="view-mode-btn" data-mode="day" id="btnModeDay" title="תצוגת יום בודד עם גופן מוגדל">
-            📆 יום בודד
-          </button>
-        </nav>
+        <!-- Switch 2: View Mode Switcher (Whole Week ⇄ Single Day) -->
+        <div id="viewModeToggleSwitch" class="pill-toggle-container" role="button" tabindex="0" aria-label="החלפת מצב תצוגה: שבוע שלם או יום בודד" title="לחץ להחלפה בין שבוע שלם ליום בודד">
+          <div class="pill-toggle-track" id="viewModeToggleTrack" data-active="week">
+            <span class="pill-toggle-thumb" aria-hidden="true"></span>
+            <div class="pill-toggle-side side-week active" data-mode="week" id="btnToggleWeek">
+              <span class="pill-toggle-icon">📅</span>
+              <span class="pill-toggle-text">שבוע שלם</span>
+            </div>
+            <div class="pill-toggle-side side-day" data-mode="day" id="btnToggleDay">
+              <span class="pill-toggle-icon">📆</span>
+              <span class="pill-toggle-text">יום בודד</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Single-Day Selector Bar (Visible only in Single Day mode) -->
@@ -143,7 +154,7 @@
       <section id="viewLab" class="schedule-view active" aria-label="טבלת חדר מחשבים">
         <div class="room-bar room-bar-lab">
           <span class="room-bar-title">💻 חדר מחשבים (32 עמדות)</span>
-          <span id="labStats" class="room-bar-stats">0/48 תפוס</span>
+          <span id="labStats" class="room-bar-stats">0/54 תפוס</span>
         </div>
         <div class="table-wrapper">
           <table id="tableLab" class="schedule-table"></table>
@@ -154,7 +165,7 @@
       <section id="viewLibrary" class="schedule-view" aria-label="טבלת ספרייה">
         <div class="room-bar room-bar-lib">
           <span class="room-bar-title">📚 ספרייה (15 מחשבים ניידים)</span>
-          <span id="libStats" class="room-bar-stats">0/48 תפוס</span>
+          <span id="libStats" class="room-bar-stats">0/54 תפוס</span>
         </div>
         <div class="table-wrapper">
           <table id="tableLibrary" class="schedule-table"></table>

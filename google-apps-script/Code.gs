@@ -171,12 +171,24 @@ function readScheduleMap(sheet) {
     const key = row[0];
     if (!key) continue;
 
+    let t1 = String(row[4] || '').trim();
+    let t2 = t2Idx !== -1 ? String(row[t2Idx] || '').trim() : '';
+
+    // If teacher2 is empty, check if two teachers were entered together with +, /, &, comma, or Hebrew ' ו '
+    if (!t2 && t1) {
+      const splitMatch = t1.split(/\s*(?:[+/&,]|(?:\s+ו(?:\s+|$)))\s*/);
+      if (splitMatch.length >= 2 && splitMatch[0] && splitMatch[1]) {
+        t1 = splitMatch[0].trim();
+        t2 = splitMatch[1].trim();
+      }
+    }
+
     map[key] = {
       room: row[1],
       day: Number(row[2]),
       period: Number(row[3]),
-      teacher: row[4],
-      teacher2: t2Idx !== -1 ? (row[t2Idx] || '') : '',
+      teacher: t1,
+      teacher2: t2,
       className: classIdx !== -1 ? row[classIdx] : row[5],
       subject: (subjIdx !== -1 ? row[subjIdx] : row[6]) || '',
       isPermanent: String(permIdx !== -1 ? row[permIdx] : row[7]).toLowerCase() === 'true',

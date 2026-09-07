@@ -47,9 +47,10 @@ const ShareEngine = (() => {
     const lastDay = weekDates[5];
     const datesStr = `${firstDay.formattedDate} - ${lastDay.formattedDate}`;
     const schoolName = 'בית הספר עלומים חולון';
-    const roomName = document.querySelector('.room-tab-btn.active')?.dataset.room === 'library'
-      ? 'ספריית בית הספר'
-      : 'חדר המחשבים';
+    const isLibrary = (window.Schedule && typeof Schedule.getActiveRoom === 'function')
+      ? Schedule.getActiveRoom() === 'library'
+      : (document.querySelector('.room-tab-btn.active')?.dataset.room === 'library');
+    const roomName = isLibrary ? 'ספריית בית הספר' : 'חדר המחשבים';
 
     // Automatically append the sync URL so any teacher opening the link connects to the same cloud data!
     const gsUrl = Storage.getGoogleSheetsUrl();

@@ -62,7 +62,7 @@ const Storage = (() => {
   // key format: `${room}_${day}_${period}`
   // room: 'lab' | 'library'
   // day: 0..5 (0=Sunday, 5=Friday)
-  // period: 1..8
+  // period: 1..9
   const DEFAULT_SCHEDULE = {
     // Permanent computer lab lesson for Tatiana (only admin can edit)
     'lab_0_1': {
@@ -271,17 +271,40 @@ const Storage = (() => {
     schedulePush();
   }
 
+  // Normalize co-teaching teachers if entered combined in a single string
+  function normalizeSlotTeachers(slot) {
+    if (!slot || typeof slot !== 'object') return slot;
+    if (slot.teacher && !slot.teacher2) {
+      const splitMatch = String(slot.teacher).split(/\s*(?:[+/&,]|(?:\s+ו(?:\s+|$)))\s*/);
+      if (splitMatch.length >= 2 && splitMatch[0] && splitMatch[1]) {
+        slot.teacher = splitMatch[0].trim();
+        slot.teacher2 = splitMatch[1].trim();
+      }
+    }
+    return slot;
+  }
+
   function getSchedule() {
     try {
       const data = localStorage.getItem(KEY_SCHEDULE);
-      if (data) return JSON.parse(data);
-      return getGoogleSheetsUrl() ? {} : DEFAULT_SCHEDULE;
+      const schedule = data ? JSON.parse(data) : (getGoogleSheetsUrl() ? {} : DEFAULT_SCHEDULE);
+      if (schedule && typeof schedule === 'object') {
+        Object.keys(schedule).forEach(k => {
+          normalizeSlotTeachers(schedule[k]);
+        });
+      }
+      return schedule;
     } catch {
       return getGoogleSheetsUrl() ? {} : DEFAULT_SCHEDULE;
     }
   }
 
   function saveSchedule(schedule, changedKey = null) {
+    if (schedule && typeof schedule === 'object') {
+      Object.keys(schedule).forEach(k => {
+        normalizeSlotTeachers(schedule[k]);
+      });
+    }
     localStorage.setItem(KEY_SCHEDULE, JSON.stringify(schedule));
     const keys = changedKey ? [changedKey] : [];
     broadcastLocalChange(keys);
@@ -292,13 +315,24 @@ const Storage = (() => {
   function getOverrides() {
     try {
       const data = localStorage.getItem(KEY_OVERRIDES);
-      return data ? JSON.parse(data) : {};
+      const overrides = data ? JSON.parse(data) : {};
+      if (overrides && typeof overrides === 'object') {
+        Object.keys(overrides).forEach(k => {
+          normalizeSlotTeachers(overrides[k]);
+        });
+      }
+      return overrides;
     } catch {
       return {};
     }
   }
 
   function saveOverrides(overrides, changedKey = null) {
+    if (overrides && typeof overrides === 'object') {
+      Object.keys(overrides).forEach(k => {
+        normalizeSlotTeachers(overrides[k]);
+      });
+    }
     localStorage.setItem(KEY_OVERRIDES, JSON.stringify(overrides));
     const keys = changedKey ? [changedKey] : [];
     broadcastLocalChange(keys);
@@ -415,6 +449,9 @@ const Storage = (() => {
 
       // Compare schedule diff
       if (data.schedule && typeof data.schedule === 'object') {
+        Object.keys(data.schedule).forEach(k => {
+          normalizeSlotTeachers(data.schedule[k]);
+        });
         const currentStr = localStorage.getItem(KEY_SCHEDULE) || '{}';
         const newStr = JSON.stringify(data.schedule);
         if (currentStr !== newStr) {
@@ -432,6 +469,9 @@ const Storage = (() => {
 
       // Compare overrides diff
       if (data.overrides && typeof data.overrides === 'object') {
+        Object.keys(data.overrides).forEach(k => {
+          normalizeSlotTeachers(data.overrides[k]);
+        });
         const currentOStr = localStorage.getItem(KEY_OVERRIDES) || '{}';
         const newOStr = JSON.stringify(data.overrides);
         if (currentOStr !== newOStr) {

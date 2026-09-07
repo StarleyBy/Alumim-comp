@@ -26,8 +26,8 @@ const Schedule = (() => {
     { index: 5, name: 'ו׳', fullName: 'יום שישי' }
   ];
 
-  // 8 Lesson periods (only number, times removed)
-  const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
+  // 9 Lesson periods (only number, times removed)
+  const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
   // Active editing slot reference
   let activeEditingSlot = null;
@@ -55,20 +55,55 @@ const Schedule = (() => {
 
   /**
    * Room Switcher between Computer Lab (חדר מחשבים) and Library (ספרייה)
+   * Using interactive toggle switch pill
    */
   function setupRoomSwitcher() {
-    const tabBtns = document.querySelectorAll('.room-tab-btn');
-    tabBtns.forEach(btn => {
+    const roomToggle = document.getElementById('roomToggleSwitch');
+    if (roomToggle) {
+      roomToggle.addEventListener('click', (e) => {
+        if (window.SoundFX) SoundFX.playClick();
+        const clickedLab = e.target.closest('#btnToggleLab');
+        const clickedLib = e.target.closest('#btnToggleLib');
+        let nextRoom;
+        if (clickedLab) {
+          nextRoom = 'lab';
+        } else if (clickedLib) {
+          nextRoom = 'library';
+        } else {
+          nextRoom = activeRoom === 'lab' ? 'library' : 'lab';
+        }
+        switchRoom(nextRoom);
+      });
+
+      roomToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (window.SoundFX) SoundFX.playClick();
+          switchRoom(activeRoom === 'lab' ? 'library' : 'lab');
+        }
+      });
+    }
+
+    // Backwards compatibility for any .room-tab-btn elements
+    document.querySelectorAll('.room-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (window.SoundFX) SoundFX.playClick();
         const targetRoom = btn.dataset.room;
         switchRoom(targetRoom);
       });
     });
+
+    // Initialize UI
+    updateRoomUI(activeRoom);
   }
 
-  function switchRoom(room) {
-    activeRoom = room;
+  function updateRoomUI(room) {
+    const track = document.getElementById('roomToggleTrack');
+    if (track) track.dataset.active = room;
+    const btnLab = document.getElementById('btnToggleLab');
+    const btnLib = document.getElementById('btnToggleLib');
+    if (btnLab) btnLab.classList.toggle('active', room === 'lab');
+    if (btnLib) btnLib.classList.toggle('active', room === 'library');
 
     document.querySelectorAll('.room-tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.room === room);
@@ -80,7 +115,11 @@ const Schedule = (() => {
       labView.classList.toggle('active', room === 'lab');
       libView.classList.toggle('active', room === 'library');
     }
+  }
 
+  function switchRoom(room) {
+    activeRoom = room;
+    updateRoomUI(room);
     renderTables();
   }
 
@@ -90,49 +129,69 @@ const Schedule = (() => {
 
   /**
    * View Mode Switcher: 'week' (Whole Week) vs 'day' (Single Day)
+   * Using interactive toggle switch pill
    */
   function setupViewModeSwitcher() {
-    const btnWeek = document.getElementById('btnModeWeek');
-    const btnDay = document.getElementById('btnModeDay');
-    const daySelectorBar = document.getElementById('daySelectorBar');
-
-    if (btnWeek) {
-      btnWeek.addEventListener('click', () => {
+    const modeToggle = document.getElementById('viewModeToggleSwitch');
+    if (modeToggle) {
+      modeToggle.addEventListener('click', (e) => {
         if (window.SoundFX) SoundFX.playClick();
-        switchViewMode('week');
+        const clickedWeek = e.target.closest('#btnToggleWeek');
+        const clickedDay = e.target.closest('#btnToggleDay');
+        let nextMode;
+        if (clickedWeek) {
+          nextMode = 'week';
+        } else if (clickedDay) {
+          nextMode = 'day';
+        } else {
+          nextMode = activeViewMode === 'week' ? 'day' : 'week';
+        }
+        switchViewMode(nextMode);
+      });
+
+      modeToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (window.SoundFX) SoundFX.playClick();
+          switchViewMode(activeViewMode === 'week' ? 'day' : 'week');
+        }
       });
     }
 
-    if (btnDay) {
-      btnDay.addEventListener('click', () => {
+    // Backwards compatibility for .view-mode-btn
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
         if (window.SoundFX) SoundFX.playClick();
-        switchViewMode('day');
+        switchViewMode(btn.dataset.mode);
       });
-    }
+    });
 
     // Initialize UI to match stored activeViewMode
-    if (btnWeek) btnWeek.classList.toggle('active', activeViewMode === 'week');
-    if (btnDay) btnDay.classList.toggle('active', activeViewMode === 'day');
+    updateViewModeUI(activeViewMode);
+  }
+
+  function updateViewModeUI(mode) {
+    const track = document.getElementById('viewModeToggleTrack');
+    if (track) track.dataset.active = mode;
+    const btnWeek = document.getElementById('btnToggleWeek');
+    const btnDay = document.getElementById('btnToggleDay');
+    if (btnWeek) btnWeek.classList.toggle('active', mode === 'week');
+    if (btnDay) btnDay.classList.toggle('active', mode === 'day');
+
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    const daySelectorBar = document.getElementById('daySelectorBar');
     if (daySelectorBar) {
-      daySelectorBar.style.display = activeViewMode === 'day' ? 'flex' : 'none';
+      daySelectorBar.style.display = mode === 'day' ? 'flex' : 'none';
     }
   }
 
   function switchViewMode(mode) {
     activeViewMode = mode;
     localStorage.setItem(KEY_VIEW_MODE, mode);
-
-    const btnWeek = document.getElementById('btnModeWeek');
-    const btnDay = document.getElementById('btnModeDay');
-    const daySelectorBar = document.getElementById('daySelectorBar');
-
-    if (btnWeek) btnWeek.classList.toggle('active', mode === 'week');
-    if (btnDay) btnDay.classList.toggle('active', mode === 'day');
-
-    if (daySelectorBar) {
-      daySelectorBar.style.display = mode === 'day' ? 'flex' : 'none';
-    }
-
+    updateViewModeUI(mode);
     renderTables();
   }
 
@@ -406,7 +465,7 @@ const Schedule = (() => {
       </thead>
     `;
 
-    // Body: 8 Periods
+    // Body: 9 Periods
     let tbodyHtml = `<tbody>`;
 
     PERIODS.forEach(periodNum => {
@@ -518,7 +577,7 @@ const Schedule = (() => {
 
   /**
    * Render Slot Content: Empty vs Occupied Card
-   * Includes same-line lock icon 🔒 with teacher's name and large typography for single-day mode
+   * Includes same-line lock icon 🔒 with teacher's name, co-teaching 🤝 badge, and large typography
    */
   function renderSlotContent(slot, isSingleDay = false, periodNum = null) {
     if (!slot) {
@@ -528,7 +587,18 @@ const Schedule = (() => {
       return `<div class="slot-empty" title="לחץ לשיבוץ">+</div>`;
     }
 
-    const teacherMeta = Storage.getTeacherByName(slot.teacher);
+    // Smart dual-teacher extraction if combined in one string
+    let teacher1 = String(slot.teacher || '').trim();
+    let teacher2 = String(slot.teacher2 || '').trim();
+    if (!teacher2 && teacher1) {
+      const splitMatch = teacher1.split(/\s*(?:[+/&,]|(?:\s+ו(?:\s+|$)))\s*/);
+      if (splitMatch.length >= 2 && splitMatch[0] && splitMatch[1]) {
+        teacher1 = splitMatch[0].trim();
+        teacher2 = splitMatch[1].trim();
+      }
+    }
+
+    const teacherMeta = Storage.getTeacherByName(teacher1);
     const classMeta = Storage.getClassByName(slot.className);
     const subjectMeta = slot.subject ? Storage.getSubjectByName(slot.subject) : null;
 
@@ -538,7 +608,15 @@ const Schedule = (() => {
     const classColor = classMeta.color || '#fef3c7';
     const classText = classMeta.textColor || Admin.getContrastColor(classColor);
 
-    // Same-line lock icon (no separate row / line wasted!)
+    let t2Color = '#fdf2f8';
+    let t2Text = '#9d174d';
+    if (teacher2) {
+      const teacher2Meta = Storage.getTeacherByName(teacher2);
+      t2Color = teacher2Meta.color || '#fdf2f8';
+      t2Text = teacher2Meta.textColor || Admin.getContrastColor(t2Color);
+    }
+
+    // Same-line lock icon
     const lockHtml = slot.isPermanent
       ? `<span class="lock-inline" title="שיעור קבוע">🔒</span> `
       : '';
@@ -557,37 +635,21 @@ const Schedule = (() => {
       `;
     }
 
-    // Secondary teacher for joint co-teaching lessons
-    let teacher2Badge = '';
-    let teacher2Meta = null;
-    let t2Color = '#fdf2f8';
-    let t2Text = '#9d174d';
-    if (slot.teacher2) {
-      teacher2Meta = Storage.getTeacherByName(slot.teacher2);
-      t2Color = teacher2Meta.color || '#fdf2f8';
-      t2Text = teacher2Meta.textColor || Admin.getContrastColor(t2Color);
-      teacher2Badge = `
-        <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}" title="מורה נוסף/ת: ${slot.teacher2}">
-          ${slot.teacher2}
-        </span>
-      `;
-    }
-
-    const coTeachingTitle = slot.teacher2
-      ? `${slot.teacher} + ${slot.teacher2} (שיעור משותף)`
-      : slot.teacher;
+    const coTeachingTitle = teacher2
+      ? `🤝 שיעור משותף: ${teacher1} + ${teacher2} • כיתה ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}`
+      : `מורה: ${teacher1} • כיתה ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}`;
 
     if (isSingleDay) {
       let teacherBlock = '';
-      if (slot.teacher2) {
+      if (teacher2) {
         teacherBlock = `
           <div class="slot-teachers-group-day">
-            <span class="badge-item badge-teacher" style="background-color: ${teacherColor}; color: ${teacherText}">
-              ${lockHtml}<span>${slot.teacher}</span>
+            <span class="badge-item badge-teacher teacher-primary" style="background-color: ${teacherColor}; color: ${teacherText}">
+              ${lockHtml}<span>${teacher1}</span>
             </span>
             <span class="co-teaching-day-badge">🤝 שיעור משותף</span>
-            <span class="badge-item badge-teacher" style="background-color: ${t2Color}; color: ${t2Text}">
-              <span>${slot.teacher2}</span>
+            <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}">
+              <span>${teacher2}</span>
             </span>
           </div>
         `;
@@ -595,14 +657,14 @@ const Schedule = (() => {
         teacherBlock = `
           <div class="slot-card-top">
             <span class="badge-item badge-teacher" style="background-color: ${teacherColor}; color: ${teacherText}">
-              ${lockHtml}<span>${slot.teacher}</span>
+              ${lockHtml}<span>${teacher1}</span>
             </span>
           </div>
         `;
       }
 
       return `
-        <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${slot.teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
+        <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • לחץ לעריכה">
           ${teacherBlock}
           <div class="slot-meta-row">
             <span class="badge-item badge-class" style="background-color: ${classColor}; color: ${classText}">
@@ -614,36 +676,40 @@ const Schedule = (() => {
       `;
     }
 
-    // Week view with adaptive font sizing, dual teachers and same-line lock
-    const tLen = (slot.teacher || '').length;
+    // Week view with dual teachers & collaboration icon
+    const tLen = teacher1.length;
     const teacherFontClass = tLen > 11 ? 'len-long' : tLen > 6 ? 'len-mid' : 'len-short';
 
     let teachersWeekHtml = '';
-    if (slot.teacher2) {
+    if (teacher2) {
       teachersWeekHtml = `
         <div class="teachers-group-week">
-          <span class="badge-item badge-teacher teacher-primary" style="background-color: ${teacherColor}; color: ${teacherText}">
-            ${lockHtml}${slot.teacher}
-          </span>
-          <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}">
-            ${slot.teacher2}
-          </span>
+          <div class="co-teacher-row co-primary">
+            <span class="co-badge-icon" title="שיעור משותף">🤝</span>
+            <span class="badge-item badge-teacher teacher-primary" style="background-color: ${teacherColor}; color: ${teacherText}" title="${teacher1}">
+              ${lockHtml}${teacher1}
+            </span>
+          </div>
+          <div class="co-teacher-row co-secondary">
+            <span class="badge-item badge-teacher teacher-secondary" style="background-color: ${t2Color}; color: ${t2Text}" title="מורה נוסף/ת: ${teacher2}">
+              ${teacher2}
+            </span>
+          </div>
         </div>
       `;
     } else {
       teachersWeekHtml = `
-        <span class="badge-item badge-teacher ${teacherFontClass}" style="background-color: ${teacherColor}; color: ${teacherText}">
-          ${lockHtml}${slot.teacher}
-        </span>
+        <div class="teachers-group-week single-teacher-wrap">
+          <span class="badge-item badge-teacher teacher-primary ${teacherFontClass}" style="background-color: ${teacherColor}; color: ${teacherText}" title="${teacher1}">
+            ${lockHtml}${teacher1}
+          </span>
+        </div>
       `;
     }
 
     return `
-      <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${slot.teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • ${slot.className}${slot.subject ? ' • ' + slot.subject : ''}">
-        <!-- Teacher Badges with same-line lock icon -->
+      <div class="slot-card ${slot.isPermanent ? 'is-permanent' : ''} ${teacher2 ? 'is-coteaching' : ''}" title="${coTeachingTitle} • לחץ לעריכה">
         ${teachersWeekHtml}
-
-        <!-- Class & Subject Mini Row -->
         <div class="slot-meta-row">
           <span class="badge-item badge-class" style="background-color: ${classColor}; color: ${classText}">
             ${slot.className}
@@ -655,11 +721,11 @@ const Schedule = (() => {
   }
 
   /**
-   * Update Room Stats
+   * Update Room Stats (54 total slots for 6 days * 9 periods)
    */
   function updateRoomStats(room, weekDates) {
     let occupied = 0;
-    const total = 6 * 8; // 48 slots
+    const total = 6 * PERIODS.length; // 54 slots
 
     weekDates.forEach(day => {
       PERIODS.forEach(p => {
@@ -745,10 +811,20 @@ const Schedule = (() => {
     titleEl.textContent = `${roomTitle} - שיעור ${period}`;
     subtitleEl.textContent = `${dayObj.fullName} (${dayDate}) • בית הספר עלומים חולון`;
 
-    teacherSelect.value = slotData ? slotData.teacher : '';
+    let t1Val = slotData ? (slotData.teacher || '') : '';
+    let t2Val = slotData ? (slotData.teacher2 || '') : '';
+    if (!t2Val && t1Val) {
+      const splitMatch = t1Val.split(/\s*(?:[+/&,]|(?:\s+ו(?:\s+|$)))\s*/);
+      if (splitMatch.length >= 2 && splitMatch[0] && splitMatch[1]) {
+        t1Val = splitMatch[0].trim();
+        t2Val = splitMatch[1].trim();
+      }
+    }
+
+    teacherSelect.value = t1Val;
     const teacher2Select = document.getElementById('selectTeacher2');
     if (teacher2Select) {
-      teacher2Select.value = slotData ? (slotData.teacher2 || '') : '';
+      teacher2Select.value = t2Val;
     }
     classSelect.value = slotData ? slotData.className : '';
     subjectSelect.value = slotData ? (slotData.subject || '') : '';
