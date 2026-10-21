@@ -13,6 +13,8 @@ const Storage = (() => {
   const KEY_OVERRIDES = 'compalumim_overrides';
   const KEY_GS_URL   = 'compalumim_gs_url';
   const KEY_ADMIN_ACTIVE = 'compalumim_admin_active';
+  const KEY_INVENTORY = 'compalumim_inventory';
+  const KEY_INVENTORY_LOOKUPS = 'compalumim_inventory_lookups';
 
   // Default Global Google Sheets Apps Script URL
   // Set this so ANY teacher opening the website on ANY device syncs automatically without setup!
@@ -135,6 +137,141 @@ const Storage = (() => {
     }
   };
 
+  // Default Equipment Inventory Categories / Lookups
+  const DEFAULT_INVENTORY_LOOKUPS = {
+    types: [
+      'מחשב נייח',
+      'מחשב נייד',
+      'מקרן',
+      'מסך / מוניטור',
+      'מדפסת',
+      'טאבלט / iPad',
+      'רמקולים / מערכת שמע',
+      'עמדת מורה אינטראקטיבית',
+      'מתג רשת / ראוטר',
+      'מצלמת רשת'
+    ],
+    brands: [
+      'Lenovo ThinkCentre M720',
+      'Lenovo IdeaPad 3',
+      'HP ProBook 450 G8',
+      'HP EliteDesk 800 G4',
+      'Dell OptiPlex 3080',
+      'Dell Latitude 3420',
+      'Epson EB-X06 (מקרן)',
+      'ViewSonic PA503W (מקרן)',
+      'Samsung 24" Curved',
+      'Canon i-SENSYS (מדפסת)',
+      'Logitech C920 HD'
+    ],
+    statuses: [
+      'תקין / עובד',
+      'יש בעיה / תקול',
+      'מושבת / שבור',
+      'במחסן',
+      'בשימוש'
+    ],
+    locations: [
+      'חדר מחשבים (עמדות 1-32)',
+      'ספרייה (לפטופים)',
+      'חדר מורים',
+      'כיתה ז׳1',
+      'כיתה ז׳2',
+      'כיתה ז׳3',
+      'כיתה ח׳1',
+      'כיתה ח׳2',
+      'כיתה ח׳3',
+      'כיתה ט׳1',
+      'כיתה ט׳2',
+      'כיתה ט׳3',
+      'כיתה י׳1',
+      'כיתה י׳2',
+      'מזכירות בית הספר',
+      'חדר מנהלת',
+      'מחסן תקשוב',
+      'אצל טטיאנה (רכזת תקשוב)'
+    ],
+    issues: [
+      'תקין (ללא תקלה)',
+      'לא נדלק / אין חשמל',
+      'מסך כחול / קופא בזמן עבודה',
+      'ספק כוח תקול',
+      'כבל מתח / HDMI פגום',
+      'מנורת מקרן שרופה / עמומה',
+      'עכבר או מקלדת תקולים',
+      'אין חיבור לרשת / אינטרנט',
+      'מערכת הפעלה איטית / וירוס',
+      'מסך שבור / פיקסלים פגומים',
+      'סוללה לא נטענת',
+      'דרוש פירמוט והתקנה מחדש',
+      'מאוורר רועש / התחממות יתר'
+    ]
+  };
+
+  // Default Seed Inventory Items
+  const DEFAULT_INVENTORY = [
+    {
+      id: 'inv_1',
+      seq: 1,
+      type: 'מחשב נייח',
+      brand: 'Lenovo ThinkCentre M720',
+      status: 'תקין / עובד',
+      location: 'חדר מחשבים (עמדות 1-32)',
+      statusDate: '2026-10-15',
+      issue: 'תקין (ללא תקלה)',
+      notes: 'עמדה מספר 1 - עמדת מורה ראשית',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'inv_2',
+      seq: 2,
+      type: 'מחשב נייח',
+      brand: 'Lenovo ThinkCentre M720',
+      status: 'יש בעיה / תקול',
+      location: 'חדר מחשבים (עמדות 1-32)',
+      statusDate: '2026-10-14',
+      issue: 'עכבר או מקלדת תקולים',
+      notes: 'עמדה מספר 7 - עכבר אלחוטי לא מגיב',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'inv_3',
+      seq: 3,
+      type: 'מחשב נייד',
+      brand: 'HP ProBook 450 G8',
+      status: 'בשימוש',
+      location: 'ספרייה (לפטופים)',
+      statusDate: '2026-10-10',
+      issue: 'תקין (ללא תקלה)',
+      notes: 'עגלת מחשבים ניידים מספר 3',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'inv_4',
+      seq: 4,
+      type: 'מקרן',
+      brand: 'Epson EB-X06 (מקרן)',
+      status: 'מושבת / שבור',
+      location: 'כיתה ז׳1',
+      statusDate: '2026-10-12',
+      issue: 'מנורת מקרן שרופה / עמומה',
+      notes: 'הוזמנה מנורה חלופית מהספק',
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'inv_5',
+      seq: 5,
+      type: 'מחשב נייד',
+      brand: 'Dell Latitude 3420',
+      status: 'במחסן',
+      location: 'מחסן תקשוב',
+      statusDate: '2026-10-08',
+      issue: 'דרוש פירמוט והתקנה מחדש',
+      notes: 'מחשב רזרבי מוכן להתקנת תוכנות',
+      updatedAt: new Date().toISOString()
+    }
+  ];
+
   // Sync state variables
   let syncInProgress = false;
   let pendingPush = false;
@@ -160,7 +297,7 @@ const Storage = (() => {
   // Also listen to window storage event as a fallback
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (e) => {
-      if (e.key === KEY_SCHEDULE || e.key === KEY_OVERRIDES || e.key === KEY_TEACHERS || e.key === KEY_CLASSES || e.key === KEY_SUBJECTS) {
+      if (e.key === KEY_SCHEDULE || e.key === KEY_OVERRIDES || e.key === KEY_TEACHERS || e.key === KEY_CLASSES || e.key === KEY_SUBJECTS || e.key === KEY_INVENTORY || e.key === KEY_INVENTORY_LOOKUPS) {
         emitRemoteUpdate([]);
       }
     });
@@ -369,6 +506,102 @@ const Storage = (() => {
     return getSubjects().find(s => s.name === name) || { name, color: '#f1f5f9', textColor: '#334155' };
   }
 
+  // ── Inventory Accessors ──
+  function getInventory() {
+    try {
+      const data = localStorage.getItem(KEY_INVENTORY);
+      if (data) return JSON.parse(data);
+      return DEFAULT_INVENTORY;
+    } catch {
+      return DEFAULT_INVENTORY;
+    }
+  }
+
+  function saveInventory(items) {
+    localStorage.setItem(KEY_INVENTORY, JSON.stringify(items || []));
+    broadcastLocalChange(['inventory']);
+    schedulePush();
+  }
+
+  function getInventoryLookups() {
+    try {
+      const data = localStorage.getItem(KEY_INVENTORY_LOOKUPS);
+      if (data) {
+        const parsed = JSON.parse(data);
+        return {
+          types: Array.isArray(parsed.types) && parsed.types.length ? parsed.types : DEFAULT_INVENTORY_LOOKUPS.types,
+          brands: Array.isArray(parsed.brands) && parsed.brands.length ? parsed.brands : DEFAULT_INVENTORY_LOOKUPS.brands,
+          statuses: Array.isArray(parsed.statuses) && parsed.statuses.length ? parsed.statuses : DEFAULT_INVENTORY_LOOKUPS.statuses,
+          locations: Array.isArray(parsed.locations) && parsed.locations.length ? parsed.locations : DEFAULT_INVENTORY_LOOKUPS.locations,
+          issues: Array.isArray(parsed.issues) && parsed.issues.length ? parsed.issues : DEFAULT_INVENTORY_LOOKUPS.issues
+        };
+      }
+      return DEFAULT_INVENTORY_LOOKUPS;
+    } catch {
+      return DEFAULT_INVENTORY_LOOKUPS;
+    }
+  }
+
+  function saveInventoryLookups(lookups) {
+    localStorage.setItem(KEY_INVENTORY_LOOKUPS, JSON.stringify(lookups || DEFAULT_INVENTORY_LOOKUPS));
+    broadcastLocalChange(['inventoryLookups']);
+    schedulePush();
+  }
+
+  function addInventoryLookupItem(category, item) {
+    if (!category || !item) return false;
+    const cleanItem = String(item).trim();
+    if (!cleanItem) return false;
+    const lookups = getInventoryLookups();
+    if (!lookups[category]) lookups[category] = [];
+    if (!lookups[category].includes(cleanItem)) {
+      lookups[category].push(cleanItem);
+      saveInventoryLookups(lookups);
+      return true;
+    }
+    return false;
+  }
+
+  function removeInventoryLookupItem(category, item) {
+    if (!category || !item) return false;
+    const lookups = getInventoryLookups();
+    if (!lookups[category]) return false;
+    const idx = lookups[category].indexOf(item);
+    if (idx !== -1) {
+      lookups[category].splice(idx, 1);
+      saveInventoryLookups(lookups);
+      return true;
+    }
+    return false;
+  }
+
+  function updateInventoryLookupItem(category, oldVal, newVal) {
+    if (!category || !oldVal || !newVal) return false;
+    const lookups = getInventoryLookups();
+    if (!lookups[category]) return false;
+    const idx = lookups[category].indexOf(oldVal);
+    if (idx !== -1) {
+      lookups[category][idx] = String(newVal).trim();
+      saveInventoryLookups(lookups);
+      // Cascade to inventory items if appropriate
+      const items = getInventory();
+      let changed = false;
+      const keyMap = { types: 'type', brands: 'brand', statuses: 'status', locations: 'location', issues: 'issue' };
+      const itemKey = keyMap[category];
+      if (itemKey) {
+        items.forEach(it => {
+          if (it[itemKey] === oldVal) {
+            it[itemKey] = newVal;
+            changed = true;
+          }
+        });
+        if (changed) saveInventory(items);
+      }
+      return true;
+    }
+    return false;
+  }
+
   // ── Initialization Check ──
   function initDefaults() {
     checkUrlSyncParam();
@@ -386,6 +619,12 @@ const Storage = (() => {
     }
     if (!localStorage.getItem(KEY_SCHEDULE)) {
       localStorage.setItem(KEY_SCHEDULE, JSON.stringify(hasRemote ? {} : DEFAULT_SCHEDULE));
+    }
+    if (!localStorage.getItem(KEY_INVENTORY)) {
+      localStorage.setItem(KEY_INVENTORY, JSON.stringify(DEFAULT_INVENTORY));
+    }
+    if (!localStorage.getItem(KEY_INVENTORY_LOOKUPS)) {
+      localStorage.setItem(KEY_INVENTORY_LOOKUPS, JSON.stringify(DEFAULT_INVENTORY_LOOKUPS));
     }
 
     // Auto-pull from cloud on initial boot if URL is configured
@@ -537,6 +776,42 @@ const Storage = (() => {
         }
       }
 
+      if (data.inventory && Array.isArray(data.inventory)) {
+        const sanitizedInv = data.inventory.map((item, idx) => ({
+          id: String(item.id || 'inv_' + Date.now() + '_' + idx),
+          seq: Number(item.seq) || (idx + 1),
+          type: String(item.type || '').trim(),
+          brand: String(item.brand || '').trim(),
+          status: String(item.status || 'תקין / עובד').trim(),
+          location: String(item.location || '').trim(),
+          statusDate: String(item.statusDate || new Date().toISOString().slice(0, 10)).trim(),
+          issue: String(item.issue || 'תקין (ללא תקלה)').trim(),
+          notes: String(item.notes || '').trim(),
+          updatedAt: String(item.updatedAt || new Date().toISOString())
+        })).filter(it => it.type || it.brand || it.location);
+
+        if (sanitizedInv.length > 0) {
+          const currentInvStr = localStorage.getItem(KEY_INVENTORY) || '[]';
+          const newInvStr = JSON.stringify(sanitizedInv);
+          if (currentInvStr !== newInvStr) {
+            localStorage.setItem(KEY_INVENTORY, newInvStr);
+            changed = true;
+            changedKeys.push('inventory');
+          }
+        }
+      }
+
+      if (data.inventoryLookups && typeof data.inventoryLookups === 'object') {
+        const lookups = data.inventoryLookups;
+        const currentLookupsStr = localStorage.getItem(KEY_INVENTORY_LOOKUPS) || '{}';
+        const newLookupsStr = JSON.stringify(lookups);
+        if (currentLookupsStr !== newLookupsStr) {
+          localStorage.setItem(KEY_INVENTORY_LOOKUPS, newLookupsStr);
+          changed = true;
+          changedKeys.push('inventoryLookups');
+        }
+      }
+
       emitSyncStatus('synced', 'מסונכרן ✓');
       if (changed) {
         emitRemoteUpdate(changedKeys);
@@ -574,6 +849,8 @@ const Storage = (() => {
           subjects: getSubjects(),
           schedule: getSchedule(),
           overrides: getOverrides(),
+          inventory: getInventory(),
+          inventoryLookups: getInventoryLookups(),
           timestamp: new Date().toISOString()
         }
       };
@@ -609,8 +886,10 @@ const Storage = (() => {
       subjects: getSubjects(),
       schedule: getSchedule(),
       overrides: getOverrides(),
+      inventory: getInventory(),
+      inventoryLookups: getInventoryLookups(),
       exportedAt: new Date().toISOString(),
-      version: '1.0'
+      version: '1.1'
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -629,6 +908,8 @@ const Storage = (() => {
       if (parsed.subjects) localStorage.setItem(KEY_SUBJECTS, JSON.stringify(parsed.subjects));
       if (parsed.schedule) localStorage.setItem(KEY_SCHEDULE, JSON.stringify(parsed.schedule));
       if (parsed.overrides) localStorage.setItem(KEY_OVERRIDES, JSON.stringify(parsed.overrides));
+      if (parsed.inventory) localStorage.setItem(KEY_INVENTORY, JSON.stringify(parsed.inventory));
+      if (parsed.inventoryLookups) localStorage.setItem(KEY_INVENTORY_LOOKUPS, JSON.stringify(parsed.inventoryLookups));
       schedulePush();
       return true;
     } catch (e) {
@@ -658,6 +939,13 @@ const Storage = (() => {
     setGoogleSheetsUrl,
     isAdminActive,
     setAdminActive,
+    getInventory,
+    saveInventory,
+    getInventoryLookups,
+    saveInventoryLookups,
+    addInventoryLookupItem,
+    removeInventoryLookupItem,
+    updateInventoryLookupItem,
     onSyncStatusChange,
     onRemoteUpdate,
     pullFromSheets,

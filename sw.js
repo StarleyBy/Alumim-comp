@@ -4,7 +4,7 @@
  * Implements Stale-While-Revalidate for app assets and Network-Only for dynamic cloud sync.
  */
 
-const CACHE_NAME = 'compalumim-v3';
+const CACHE_NAME = 'compalumim-v4';
 
 const STATIC_ASSETS = [
   './',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   './js/audio.js',
   './js/holidays.js',
   './js/storage.js',
+  './js/inventory.js',
   './js/admin.js',
   './js/share.js',
   './js/schedule.js',

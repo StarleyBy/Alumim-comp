@@ -20,6 +20,8 @@ const SHEET_CLASSES  = 'Classes';
 const SHEET_SUBJECTS = 'Subjects';
 const SHEET_SCHEDULE = 'Schedule';
 const SHEET_CONFIG   = 'Config';
+const SHEET_INVENTORY = 'Inventory';
+const SHEET_INVENTORY_LOOKUPS = 'InventoryLookups';
 
 /**
  * Handle HTTP GET Requests: returns all school schedule data as JSON
@@ -29,12 +31,17 @@ function doGet(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     ensureSheetsExist(ss);
 
+    const invSheet = ss.getSheetByName(SHEET_INVENTORY);
+    const lookupsSheet = ss.getSheetByName(SHEET_INVENTORY_LOOKUPS);
+
     const data = {
       teachers: readSheetObjects(ss.getSheetByName(SHEET_TEACHERS)),
       classes:  readSheetObjects(ss.getSheetByName(SHEET_CLASSES)),
       subjects: readSheetObjects(ss.getSheetByName(SHEET_SUBJECTS)),
       schedule: readScheduleMap(ss.getSheetByName(SHEET_SCHEDULE)),
-      overrides: readOverridesMap(ss.getSheetByName(SHEET_CONFIG))
+      overrides: readOverridesMap(ss.getSheetByName(SHEET_CONFIG)),
+      inventory: invSheet ? readSheetObjects(invSheet) : [],
+      inventoryLookups: lookupsSheet ? readInventoryLookups(lookupsSheet) : null
     };
 
     return ContentService
@@ -70,8 +77,18 @@ function doPost(e) {
       if (d.subjects) writeSheetObjects(ss.getSheetByName(SHEET_SUBJECTS), d.subjects, ['id', 'name', 'color', 'textColor']);
       if (d.schedule) writeScheduleMap(ss.getSheetByName(SHEET_SCHEDULE), d.schedule);
       if (d.overrides) writeOverridesMap(ss.getSheetByName(SHEET_CONFIG), d.overrides);
+      if (d.inventory) writeSheetObjects(ss.getSheetByName(SHEET_INVENTORY), d.inventory, ['id', 'seq', 'type', 'brand', 'status', 'location', 'statusDate', 'issue', 'notes', 'updatedAt']);
+      if (d.inventoryLookups) writeInventoryLookups(ss.getSheetByName(SHEET_INVENTORY_LOOKUPS), d.inventoryLookups);
 
       return jsonResponse({ ok: true, message: 'All data synchronized successfully' });
+    }
+
+    if (payload.action === 'saveInventory' && payload.data) {
+      const d = payload.data;
+      if (d.inventory) writeSheetObjects(ss.getSheetByName(SHEET_INVENTORY), d.inventory, ['id', 'seq', 'type', 'brand', 'status', 'location', 'statusDate', 'issue', 'notes', 'updatedAt']);
+      if (d.inventoryLookups) writeInventoryLookups(ss.getSheetByName(SHEET_INVENTORY_LOOKUPS), d.inventoryLookups);
+
+      return jsonResponse({ ok: true, message: 'Inventory synchronized successfully' });
     }
 
     return jsonResponse({ ok: false, error: 'Unknown action' });
@@ -96,7 +113,9 @@ function ensureSheetsExist(ss) {
     { name: SHEET_CLASSES,  headers: ['id', 'name', 'color', 'textColor'] },
     { name: SHEET_SUBJECTS, headers: ['id', 'name', 'color', 'textColor'] },
     { name: SHEET_SCHEDULE, headers: ['key', 'room', 'day', 'period', 'teacher', 'teacher2', 'className', 'subject', 'isPermanent', 'updatedAt'] },
-    { name: SHEET_CONFIG,   headers: ['key', 'jsonValue'] }
+    { name: SHEET_CONFIG,   headers: ['key', 'jsonValue'] },
+    { name: SHEET_INVENTORY, headers: ['id', 'seq', 'type', 'brand', 'status', 'location', 'statusDate', 'issue', 'notes', 'updatedAt'] },
+    { name: SHEET_INVENTORY_LOOKUPS, headers: ['types', 'brands', 'statuses', 'locations', 'issues'] }
   ];
 
   definitions.forEach(def => {
@@ -266,4 +285,70 @@ function writeOverridesMap(sheet, overrides) {
   }
 
   sheet.appendRow(['overrides', jsonStr]);
+}
+
+/**
+ * Read Inventory Lookup categories (types, brands, statuses, locations, issues)
+ */
+function readInventoryLookups(sheet) {
+  if (!sheet) return null;
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return null;
+
+  const headers = data[0];
+  const lookups = {
+    types: [],
+    brands: [],
+    statuses: [],
+    locations: [],
+    issues: []
+  };
+
+  headers.forEach((h, c) => {
+    const key = String(h).trim();
+    if (lookups[key] !== undefined) {
+      for (let r = 1; r < data.length; r++) {
+        const val = String(data[r][c] || '').trim();
+        if (val && !lookups[key].includes(val)) {
+          lookups[key].push(val);
+        }
+      }
+    }
+  });
+
+  return lookups;
+}
+
+/**
+ * Write Inventory Lookup categories
+ */
+function writeInventoryLookups(sheet, lookups) {
+  if (!sheet || !lookups) return;
+  const headers = ['types', 'brands', 'statuses', 'locations', 'issues'];
+  sheet.clearContents();
+  sheet.appendRow(headers);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f1f5f9');
+
+  const maxLen = Math.max(
+    (lookups.types || []).length,
+    (lookups.brands || []).length,
+    (lookups.statuses || []).length,
+    (lookups.locations || []).length,
+    (lookups.issues || []).length
+  );
+
+  if (maxLen === 0) return;
+
+  const rows = [];
+  for (let r = 0; r < maxLen; r++) {
+    rows.push([
+      (lookups.types && lookups.types[r]) || '',
+      (lookups.brands && lookups.brands[r]) || '',
+      (lookups.statuses && lookups.statuses[r]) || '',
+      (lookups.locations && lookups.locations[r]) || '',
+      (lookups.issues && lookups.issues[r]) || ''
+    ]);
+  }
+
+  sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 }

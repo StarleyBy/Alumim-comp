@@ -145,6 +145,9 @@ const Admin = (() => {
     renderClassesList();
     renderSubjectsList();
     loadSheetsSettings();
+    if (window.Inventory && typeof Inventory.renderAdminModalSummary === 'function') {
+      Inventory.renderAdminModalSummary();
+    }
 
     switchAdminTab(defaultTab);
     modalEl.classList.add('active');

@@ -24,6 +24,7 @@ const App = (() => {
     if (window.SoundFX) SoundFX.init();
     if (window.ShareEngine) ShareEngine.init();
     if (window.Admin) Admin.init();
+    if (window.Inventory) Inventory.init();
     if (window.Schedule) Schedule.init();
 
     // Setup Sync Status UI

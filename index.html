@@ -34,6 +34,9 @@
         <span>מנהלת: <strong>טטיאנה</strong></span>
       </div>
       <div class="admin-banner-actions">
+        <button type="button" id="btnOpenInventory" class="btn btn-inventory btn-sm" title="אינוונטר ציוד ומחשבים">
+          📦 אינוונטר ציוד
+        </button>
         <button type="button" id="btnOpenAdminModal" class="btn btn-admin btn-sm" title="הגדרות ורשימות">
           ⚙️ ניהול
         </button>
@@ -363,6 +366,7 @@
           <button type="button" class="admin-tab active" data-tab="teachers">👤 מורים</button>
           <button type="button" class="admin-tab" data-tab="classes">👥 כיתות</button>
           <button type="button" class="admin-tab" data-tab="subjects">📖 מקצועות</button>
+          <button type="button" class="admin-tab" data-tab="inventory">📦 אינוונטר</button>
           <button type="button" class="admin-tab" data-tab="sync">☁️ Sheets וגיבוי</button>
         </nav>
 
@@ -417,7 +421,12 @@
           </form>
         </div>
 
-        <!-- Tab 4: Sync & Backup -->
+        <!-- Tab 4: Inventory Summary -->
+        <div id="tabContent-inventory" class="admin-tab-content">
+          <div id="adminInventorySummary"></div>
+        </div>
+
+        <!-- Tab 5: Sync & Backup -->
         <div id="tabContent-sync" class="admin-tab-content">
           <div class="form-group">
             <label for="gsUrlInput" class="form-label">כתובת Google Apps Script Web App:</label>
@@ -447,6 +456,273 @@
     </div>
   </div>
 
+  <!-- ==========================================================================
+       Inventory Modal (אינוונטריזציית ציוד ומחשבים - בלעדי למנהלת)
+       ========================================================================== -->
+  <div id="inventoryModal" class="modal-backdrop modal-backdrop-fullscreen" role="dialog" aria-modal="true" aria-labelledby="invModalTitle">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-header-icon">📦</span>
+          <div>
+            <h3 id="invModalTitle" class="modal-title">אינוונטר ציוד ומחשבים • בית הספר עלומים חולון</h3>
+            <div class="modal-subtitle">מעקב מצאי, תקינות, מיקומי כיתות, תקלות וסנכרון ענן (למנהלת בלבד)</div>
+          </div>
+        </div>
+        <button type="button" id="inventoryModalClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body inv-modal-body">
+        <!-- Top Stats Overview -->
+        <div class="inv-stats-row">
+          <div class="inv-stat-card stat-total">
+            <div class="stat-icon">📦</div>
+            <div class="stat-details">
+              <span id="statTotalItems" class="stat-number">0</span>
+              <span class="stat-label">סה״כ ציוד</span>
+            </div>
+          </div>
+          <div class="inv-stat-card stat-ok">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-details">
+              <span id="statWorkingItems" class="stat-number">0</span>
+              <span class="stat-label">תקין ופעיל</span>
+            </div>
+          </div>
+          <div class="inv-stat-card stat-inuse">
+            <div class="stat-icon">💼</div>
+            <div class="stat-details">
+              <span id="statInUseItems" class="stat-number">0</span>
+              <span class="stat-label">בשימוש</span>
+            </div>
+          </div>
+          <div class="inv-stat-card stat-problem">
+            <div class="stat-icon">🟠</div>
+            <div class="stat-details">
+              <span id="statProblemItems" class="stat-number">0</span>
+              <span class="stat-label">תקול / בעיה</span>
+            </div>
+          </div>
+          <div class="inv-stat-card stat-broken">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-details">
+              <span id="statBrokenItems" class="stat-number">0</span>
+              <span class="stat-label">מושבת / שבור</span>
+            </div>
+          </div>
+          <div class="inv-stat-card stat-storage">
+            <div class="stat-icon">🏬</div>
+            <div class="stat-details">
+              <span id="statStorageItems" class="stat-number">0</span>
+              <span class="stat-label">במחסן</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Action Toolbar -->
+        <div class="inv-toolbar">
+          <div class="inv-search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="invSearchInput" class="form-input inv-search-input" placeholder="חיפוש חופשי (מס״ד, דגם, מיקום, תקלה, הערה)...">
+            <button type="button" id="btnClearInvSearch" class="btn-clear-search" title="נקה חיפוש">&times;</button>
+          </div>
+
+          <div class="inv-filters-group">
+            <select id="invFilterStatus" class="form-select inv-filter-select" title="סינון לפי סטטוס">
+              <option value="">כל הסטטוסים (הכל)</option>
+              <option value="תקין / עובד">🟢 תקין / עובד</option>
+              <option value="בשימוש">💼 בשימוש</option>
+              <option value="יש בעיה / תקול">🟠 יש בעיה / תקול</option>
+              <option value="מושבת / שבור">🔴 מושבת / שבור</option>
+              <option value="במחסן">🏬 במחסן</option>
+            </select>
+
+            <select id="invFilterType" class="form-select inv-filter-select" title="סינון לפי סוג ציוד">
+              <option value="">כל סוגי הציוד (הכל)</option>
+            </select>
+
+            <select id="invFilterLocation" class="form-select inv-filter-select" title="סינון לפי מיקום">
+              <option value="">כל המיקומים (הכל)</option>
+            </select>
+          </div>
+
+          <div class="inv-actions-group">
+            <button type="button" id="btnAddInventoryItem" class="btn btn-primary btn-sm" title="הוספת פריט חדש באמצעות דיאלוג">
+              <span>➕</span>
+              <span>הוסף פריט חדש</span>
+            </button>
+
+            <button type="button" id="btnToggleInlineEdit" class="btn btn-secondary btn-sm" title="הפעלת מצב עריכה ישירה בתוך הטבלה (כמו באקסל)">
+              <span>✏️</span>
+              <span>עריכה ישירה בטבלה</span>
+            </button>
+
+            <button type="button" id="btnAddInlineRow" class="btn btn-success btn-sm" style="display: none;" title="הוספת שורה חדשה ישירות לטבלה">
+              <span>➕</span>
+              <span>הוסף שורה</span>
+            </button>
+
+            <button type="button" id="btnManageLookups" class="btn btn-secondary btn-sm" title="עריכת רשימות הבחירה (סוגים, דגמים, תקלות, מיקומים)">
+              <span>⚙️</span>
+              <span>רשימות בחירה</span>
+            </button>
+
+            <button type="button" id="btnExportInventoryCsv" class="btn btn-secondary btn-sm" title="הורדת קובץ אקסל (CSV) עם תמיכה מלאה בעברית">
+              <span>📥</span>
+              <span>ייצוא CSV</span>
+            </button>
+
+            <button type="button" id="btnPrintInventory" class="btn btn-secondary btn-sm" title="הדפסת טבלת אינוונטר">
+              <span>🖨️</span>
+              <span>הדפסה</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Counter Indicator -->
+        <div class="inv-meta-bar">
+          <span id="invFilteredCount" class="inv-filtered-count">טוען נתונים...</span>
+          <span class="inv-hint-text">💡 ניתן לערוך ישירות בטבלה או לפתוח דיאלוג בלחיצה כפולה על שורה.</span>
+        </div>
+
+        <!-- Responsive Table Wrapper -->
+        <div class="inv-table-container">
+          <table id="inventoryTable" class="inventory-table"></table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="inventoryModalFooterClose" class="btn btn-secondary btn-sm">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Item Dialog Modal (הוספת / עריכת פריט אינוונטר בדיאלוג)
+       ========================================================================== -->
+  <div id="inventoryItemModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="invItemModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span>💻</span>
+          <div>
+            <h3 id="invItemModalTitle" class="modal-title">הוספת פריט ציוד חדש</h3>
+            <div id="invItemModalSubtitle" class="modal-subtitle">הזנת נתונים באמצעות טופס דיאלוג</div>
+          </div>
+        </div>
+        <button type="button" id="inventoryItemModalClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="inventoryItemForm">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="invItemSeq" class="form-label">
+                <span class="required">*</span> מס״ד (מספר סידורי):
+              </label>
+              <input type="number" id="invItemSeq" class="form-input" required min="1" placeholder="1">
+            </div>
+
+            <div class="form-group">
+              <label for="invItemStatusDate" class="form-label">
+                <span class="required">*</span> תאריך שינוי סטטוס:
+              </label>
+              <input type="date" id="invItemStatusDate" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="invItemType" class="form-label"><span class="required">*</span> סוג ציוד:</label>
+              <button type="button" class="btn-link-action btn-quick-add-lookup" data-category="types" data-target="invItemType" title="הוסף סוג חדש לרשימה">+ סוג חדש</button>
+            </div>
+            <select id="invItemType" class="form-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="invItemBrand" class="form-label"><span class="required">*</span> מותג / דגם:</label>
+              <button type="button" class="btn-link-action btn-quick-add-lookup" data-category="brands" data-target="invItemBrand" title="הוסף מותג חדש לרשימה">+ מותג חדש</button>
+            </div>
+            <select id="invItemBrand" class="form-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="invItemStatus" class="form-label"><span class="required">*</span> סטטוס ציוד:</label>
+            <select id="invItemStatus" class="form-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="invItemLocation" class="form-label"><span class="required">*</span> מיקום / שיוך / אצל מי:</label>
+              <button type="button" class="btn-link-action btn-quick-add-lookup" data-category="locations" data-target="invItemLocation" title="הוסף מיקום חדש לרשימה">+ מיקום חדש</button>
+            </div>
+            <select id="invItemLocation" class="form-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-action">
+              <label for="invItemIssue" class="form-label">פירוט תקלה (במידה ויש):</label>
+              <button type="button" class="btn-link-action btn-quick-add-lookup" data-category="issues" data-target="invItemIssue" title="הוסף סוג תקלה לרשימה">+ תקלה חדשה</button>
+            </div>
+            <select id="invItemIssue" class="form-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="invItemNotes" class="form-label">הערות נוספות (מספר סידורי S/N, ספק, אחריות):</label>
+            <textarea id="invItemNotes" class="form-textarea" rows="2" placeholder="לדוגמה: עמדה מספר 14, אחריות עד 2027..."></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnCancelInventoryItem" class="btn btn-secondary btn-sm">ביטול</button>
+        <button type="submit" form="inventoryItemForm" id="btnSaveInventoryItem" class="btn btn-primary btn-sm">✓ שמור פריט</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Manage Lookups Modal (עריכת רשימות בחירה - סוגים, דגמים, תקלות, מיקומים)
+       ========================================================================== -->
+  <div id="inventoryLookupsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="invLookupsModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span>⚙️</span>
+          <div>
+            <h3 id="invLookupsModalTitle" class="modal-title">ניהול רשימות בחירה</h3>
+            <div class="modal-subtitle">הוספה, עריכה ומחיקה של אפשרויות ברשימות הנפתחות</div>
+          </div>
+        </div>
+        <button type="button" id="inventoryLookupsClose" class="modal-close" aria-label="סגור">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="lookups-nav-pills">
+          <button type="button" class="lookup-cat-btn active" data-category="types">🏷️ סוגי ציוד</button>
+          <button type="button" class="lookup-cat-btn" data-category="brands">💻 מותגים ודגמים</button>
+          <button type="button" class="lookup-cat-btn" data-category="statuses">🚦 סטטוסים</button>
+          <button type="button" class="lookup-cat-btn" data-category="locations">📍 מיקומים וכיתות</button>
+          <button type="button" class="lookup-cat-btn" data-category="issues">⚠️ תקלות נפוצות</button>
+        </div>
+
+        <h4 id="lookupCategoryTitle" class="lookup-cat-heading">סוגי ציוד</h4>
+
+        <div id="lookupsItemsList" class="lookups-items-container"></div>
+
+        <form id="formAddLookupItem" class="add-lookup-form">
+          <input type="text" id="newLookupItemValue" class="form-input" placeholder="הזן פריט חדש להוספה..." required>
+          <button type="submit" class="btn btn-primary btn-sm">➕ הוסף לרשימה</button>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="inventoryLookupsFooterClose" class="btn btn-secondary btn-sm">סיום וסגירה</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
@@ -454,6 +730,7 @@
   <script src="js/audio.js"></script>
   <script src="js/holidays.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/inventory.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/share.js"></script>
   <script src="js/schedule.js"></script>
