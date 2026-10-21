@@ -15,6 +15,7 @@ const Storage = (() => {
   const KEY_ADMIN_ACTIVE = 'compalumim_admin_active';
   const KEY_INVENTORY = 'compalumim_inventory';
   const KEY_INVENTORY_LOOKUPS = 'compalumim_inventory_lookups';
+  const KEY_INV_LANG = 'compalumim_inv_lang';
 
   // Default Global Google Sheets Apps Script URL
   // Set this so ANY teacher opening the website on ANY device syncs automatically without setup!
@@ -213,6 +214,7 @@ const Storage = (() => {
     {
       id: 'inv_1',
       seq: 1,
+      sn: 'SN-LNV-720-01',
       type: 'מחשב נייח',
       brand: 'Lenovo ThinkCentre M720',
       status: 'תקין / עובד',
@@ -225,6 +227,7 @@ const Storage = (() => {
     {
       id: 'inv_2',
       seq: 2,
+      sn: 'SN-LNV-720-07',
       type: 'מחשב נייח',
       brand: 'Lenovo ThinkCentre M720',
       status: 'יש בעיה / תקול',
@@ -237,6 +240,7 @@ const Storage = (() => {
     {
       id: 'inv_3',
       seq: 3,
+      sn: 'SN-HP-450-03',
       type: 'מחשב נייד',
       brand: 'HP ProBook 450 G8',
       status: 'בשימוש',
@@ -249,6 +253,7 @@ const Storage = (() => {
     {
       id: 'inv_4',
       seq: 4,
+      sn: 'SN-EPS-X06-Z1',
       type: 'מקרן',
       brand: 'Epson EB-X06 (מקרן)',
       status: 'מושבת / שבור',
@@ -261,6 +266,7 @@ const Storage = (() => {
     {
       id: 'inv_5',
       seq: 5,
+      sn: 'SN-DLL-3420-R2',
       type: 'מחשב נייד',
       brand: 'Dell Latitude 3420',
       status: 'במחסן',
@@ -780,15 +786,16 @@ const Storage = (() => {
         const sanitizedInv = data.inventory.map((item, idx) => ({
           id: String(item.id || 'inv_' + Date.now() + '_' + idx),
           seq: Number(item.seq) || (idx + 1),
-          type: String(item.type || '').trim(),
-          brand: String(item.brand || '').trim(),
-          status: String(item.status || 'תקין / עובד').trim(),
-          location: String(item.location || '').trim(),
-          statusDate: String(item.statusDate || new Date().toISOString().slice(0, 10)).trim(),
-          issue: String(item.issue || 'תקין (ללא תקלה)').trim(),
-          notes: String(item.notes || '').trim(),
+          sn: String(item.sn || item['ID (SN)'] || item['SN'] || item['id_sn'] || item['מזהה'] || item['מספר סידורי (SN)'] || item['Серийный номер'] || item['ИД'] || '').trim(),
+          type: String(item.type || item['סוג ציוד'] || item['סוג'] || item['Тип'] || item['Тип оборудования'] || '').trim(),
+          brand: String(item.brand || item['מותג / דגם'] || item['מותג'] || item['דגם'] || item['Бреנד'] || item['Модель'] || '').trim(),
+          status: String(item.status || item['סטטוס'] || item['מצב'] || item['Статус'] || 'תקין / עובד').trim(),
+          location: String(item.location || item['מיקום'] || item['כיתה'] || item['Кабинет'] || item['Местоположение'] || '').trim(),
+          statusDate: String(item.statusDate || item['תאריך שינוי סטטוס'] || item['תאריך'] || item['Дата'] || new Date().toISOString().slice(0, 10)).trim(),
+          issue: String(item.issue || item['פירוט תקלה'] || item['תקלה'] || item['Неисправность'] || 'תקין (ללא תקלה)').trim(),
+          notes: String(item.notes || item['הערות'] || item['הערה'] || item['Примечания'] || '').trim(),
           updatedAt: String(item.updatedAt || new Date().toISOString())
-        })).filter(it => it.type || it.brand || it.location);
+        })).filter(it => it.type || it.brand || it.location || it.sn || it.seq);
 
         if (sanitizedInv.length > 0) {
           const currentInvStr = localStorage.getItem(KEY_INVENTORY) || '[]';
@@ -918,6 +925,30 @@ const Storage = (() => {
     }
   }
 
+  // ── Inventory Language & Sync Helpers ──
+  function getInventoryLang() {
+    try {
+      return localStorage.getItem(KEY_INV_LANG) || 'he';
+    } catch {
+      return 'he';
+    }
+  }
+
+  function setInventoryLang(lang) {
+    try {
+      localStorage.setItem(KEY_INV_LANG, lang === 'ru' ? 'ru' : 'he');
+    } catch (e) {
+      console.warn('Could not save inventory language:', e);
+    }
+  }
+
+  async function syncInventoryWithSheets() {
+    emitSyncStatus('syncing', 'מסנכרן אינוונטר...');
+    const pullResult = await pullFromSheets();
+    await pushToSheets();
+    return pullResult;
+  }
+
   // Initialize on load
   initDefaults();
 
@@ -946,6 +977,9 @@ const Storage = (() => {
     addInventoryLookupItem,
     removeInventoryLookupItem,
     updateInventoryLookupItem,
+    getInventoryLang,
+    setInventoryLang,
+    syncInventoryWithSheets,
     onSyncStatusChange,
     onRemoteUpdate,
     pullFromSheets,

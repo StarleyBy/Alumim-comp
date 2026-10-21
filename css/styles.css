@@ -2309,6 +2309,101 @@ body {
   font-size: 0.86rem;
 }
 
+.inv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn-inv-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-medium);
+  background: var(--bg-surface-elevated);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.btn-inv-lang:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.inv-sn-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2.5px 7px;
+  border-radius: var(--radius-sm);
+  background: rgba(30, 41, 59, 0.06);
+  border: 1px dashed var(--border-medium);
+  color: var(--text-main);
+  font-size: 0.76rem;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .inv-sn-badge {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #93c5fd;
+}
+
+.inv-cell-sn {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* LTR adjustments when Russian language is selected */
+#inventoryModal[dir="ltr"] .inventory-table,
+#inventoryModal[dir="ltr"] .modal-header,
+#inventoryModal[dir="ltr"] .inv-toolbar,
+#inventoryModal[dir="ltr"] .inv-meta-bar,
+#inventoryItemModal[dir="ltr"] form,
+#inventoryLookupsModal[dir="ltr"] {
+  text-align: left;
+}
+
+#inventoryModal[dir="ltr"] .inv-search-wrap .search-icon {
+  right: auto;
+  left: 0.75rem;
+}
+
+#inventoryModal[dir="ltr"] .inv-search-wrap .inv-search-input {
+  padding-left: 2.2rem;
+  padding-right: 2rem;
+}
+
+#inventoryModal[dir="ltr"] .inv-search-wrap .btn-clear-search {
+  left: auto;
+  right: 0.45rem;
+}
+
+#inventoryModal[dir="ltr"] .inv-filter-select {
+  padding: 0.2rem 0.6rem 0.2rem 1.6rem;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── Cell Pills & Badges ── */
 .inv-type-pill {
   display: inline-flex;

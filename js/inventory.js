@@ -1,12 +1,13 @@
 /**
- * CompAlumim - Inventory Management Engine (אינוונטריזציה)
+ * CompAlumim - Inventory Management Engine (אינוונטריזציה / Инвентаризация)
  * Exclusively for Admin (Tatiana):
- * - Comprehensive tracking of school computers, laptops, projectors, and equipment
- * - Adding & editing records via Dialog Form Modal
- * - In-table direct editing (редактирование таблицы из приложения)
- * - Customizable dropdown lists (Lookups) with add/edit/delete capability
+ * - Multi-language support for Admin: Hebrew (עברית) & Russian (Русский)
+ * - Optional ID (SN) device serial number tracking
  * - Real-time Google Sheets synchronization & offline caching
- * - Search, filter by status/type/room, statistics overview, CSV & Print export
+ * - In-table direct editing (редактирование таблицы прямо в интерфейсе)
+ * - Dialog Form Modal for adding & editing items
+ * - Customizable dropdown lists (Lookups)
+ * - Search, multi-criteria filtering, top statistics overview, CSV & Print export
  */
 
 const Inventory = (() => {
@@ -24,15 +25,219 @@ const Inventory = (() => {
   let isInlineEditMode = false;
   let currentEditingItemId = null;
   let activeLookupCategory = 'types';
+  let isSyncing = false;
+  let currentLang = 'he';
 
   /**
-   * Status appearance and icons
+   * Comprehensive Bilingual Dictionary (עברית & Русский)
+   */
+  const I18N = {
+    he: {
+      langToggleText: '🌐 Русский',
+      langToggleTitle: 'עבור לממשק ברוסית (לאדמין בלבד)',
+      modalTitle: 'אינוונטר ציוד ומחשבים • בית הספר עלומים חולון',
+      modalSubtitle: 'מעקב מצאי, תקינות, מיקומי כיתות, תקלות וסנכרון ענן (למנהלת בלבד)',
+      statTotal: 'סה״כ ציוד',
+      statOk: 'תקין ופעיל',
+      statInUse: 'בשימוש',
+      statProblem: 'תקול / בעיה',
+      statBroken: 'מושבת / שבור',
+      statStorage: 'במחסן',
+      searchPlaceholder: 'חיפוש חופשי (מס״ד, ID/SN, דגם, מיקום, תקלה, הערה)...',
+      allStatuses: 'כל הסטטוסים (הכל)',
+      allTypes: 'כל סוגי הציוד (הכל)',
+      allLocations: 'כל המיקומים (הכל)',
+      btnAddItem: 'הוסף פריט חדש',
+      btnInlineEdit: 'עריכה ישירה בטבלה',
+      btnInlineEditDone: 'סיום עריכה ישירה',
+      btnAddRow: 'הוסף שורה',
+      btnLookups: 'רשימות בחירה',
+      btnExportCsv: 'ייצוא CSV',
+      btnPrint: 'הדפסה',
+      btnSync: 'סנכרון ענן',
+      syncing: 'מסנכרן...',
+      synced: 'הנתונים סונכרנו בהצלחה עם Google Sheets ✓',
+      syncError: 'שגיאה בסנכרון עם Google Sheets',
+      filteredCount: (count, total) => `מציג ${count} מתוך ${total} פריטים`,
+      hintText: '💡 ניתן לערוך ישירות בטבלה או לפתוח דיאלוג בלחיצה כפולה על שורה.',
+      emptyTitle: 'לא נמצאו פריטי ציוד',
+      emptyDesc: 'נסה לשנות את מסנני החיפוש או הוסף פריט חדש לאינוונטר',
+      btnEmptyAdd: '➕ הוסף פריט ציוד ראשון',
+      colSeq: 'מס״ד',
+      colSn: 'ID (SN)',
+      colType: 'סוג ציוד',
+      colBrand: 'מותג / דגם',
+      colStatus: 'סטטוס',
+      colLocation: 'מיקום',
+      colStatusDate: 'תאריך סטטוס',
+      colIssue: 'פירוט תקלה',
+      colNotes: 'הערות',
+      colActions: 'פעולות',
+      actionsEdit: 'עריכה בדיאלוג',
+      actionsDelete: 'מחיקת פריט',
+      actionsSave: 'שמור שינויים',
+      itemModalAddTitle: 'הוספת פריט ציוד חדש לאינוונטר',
+      itemModalEditTitle: (seq) => `עריכת פריט ציוד #${seq}`,
+      itemModalSubtitleAdd: 'הזנת נתונים באמצעות טופס דיאלוג',
+      fieldSeq: 'מס״ד (מספר סידורי):',
+      fieldSn: 'מזהה מכשיר / מספר סידורי (ID / SN) — אופציונלי:',
+      fieldSnPlaceholder: 'לדוגמה: SN-948201 / חולון-042 (אם קיים)',
+      fieldStatusDate: 'תאריך שינוי סטטוס:',
+      fieldType: 'סוג ציוד:',
+      fieldBrand: 'מותג / דגם:',
+      fieldStatus: 'סטטוס ציוד:',
+      fieldLocation: 'מיקום / שיוך / אצל מי:',
+      fieldIssue: 'פירוט תקלה (במידה ויש):',
+      fieldNotes: 'הערות נוספות (ספק, אחריות, הערות טכנאי):',
+      fieldNotesPlaceholder: 'לדוגמה: עמדה מספר 14, אחריות עד 2027...',
+      btnQuickAddType: '+ סוג חדש',
+      btnQuickAddBrand: '+ מותג חדש',
+      btnQuickAddLocation: '+ מיקום חדש',
+      btnQuickAddIssue: '+ תקלה חדשה',
+      btnCancel: 'ביטול',
+      btnSaveItem: '✓ שמור פריט',
+      btnSaveItemEdit: '✓ שמור שינויים',
+      lookupsTitle: 'ניהול רשימות בחירה',
+      lookupsSubtitle: 'הוספה, עריכה ומחיקה של אפשרויות ברשימות הנפתחות',
+      tabTypes: '🏷️ סוגי ציוד',
+      tabBrands: '💻 מותגים ודגמים',
+      tabStatuses: '🚦 סטטוסים',
+      tabLocations: '📍 מיקומים וכיתות',
+      tabIssues: '⚠️ תקלות נפוצות',
+      catNames: {
+        types: 'סוגי ציוד',
+        brands: 'מותגים ודגמים',
+        statuses: 'סטטוסים',
+        locations: 'מיקומים וכיתות',
+        issues: 'סוגי תקלות'
+      },
+      addLookupPlaceholder: 'הזן פריט חדש להוספה...',
+      btnAddLookup: '➕ הוסף לרשימה',
+      btnClose: 'סגור',
+      btnFinishClose: 'סיום וסגירה',
+      deleteConfirm: (seq, type, brand) => `האם את בטוחה שברצונך למחוק מאינוונטר הציוד את:\nמס״ד #${seq} - ${type} (${brand})?`,
+      toastAdded: (seq, type) => `פריט ציוד חדש #${seq} נוסף בהצלחה לאינוונטר ✓`,
+      toastUpdated: (seq, type) => `פריט #${seq} (${type}) עודכן בהצלחה ✓`,
+      toastDeleted: (seq) => `פריט #${seq} נמחק מהאינוונטר`,
+      toastLookupAdded: (val, cat) => `"${val}" נוסף בהצלחה לרשימת ה-${cat}`,
+      toastLookupExists: 'פריט זה כבר קיים ברשימה',
+      toastInlineOn: 'מצב עריכה ישירה בטבלה הופעל: ניתן לערוך תאים ישירות!',
+      toastInlineOff: 'מצב עריכה ישירה נסגר. כל הנתונים נשמרו.',
+      toastAccessDenied: 'גישה חסומה: רק למנהלת המערכת (טטיאנה) יש הרשאה לניהול אינוונטר'
+    },
+    ru: {
+      langToggleText: '🌐 עברית',
+      langToggleTitle: 'Переключить на иврит',
+      modalTitle: 'Инвентаризация оборудования и компьютеров • Школа Алумим Холон',
+      modalSubtitle: 'Учет оборудования, исправность, кабинеты, неисправности и синхронизация (только для админа)',
+      statTotal: 'Всего оборудования',
+      statOk: 'Исправно / Работает',
+      statInUse: 'В использовании',
+      statProblem: 'Есть проблема / Неисправно',
+      statBroken: 'Сломано / Списано',
+      statStorage: 'На складе',
+      searchPlaceholder: 'Поиск (№, ID/SN, модель, кабинет, неисправность, заметка)...',
+      allStatuses: 'Все статусы (Все)',
+      allTypes: 'Все типы оборудования (Все)',
+      allLocations: 'Все кабинеты / локации (Все)',
+      btnAddItem: 'Добавить устройство',
+      btnInlineEdit: 'Прямое редактирование',
+      btnInlineEditDone: 'Завершить редактирование',
+      btnAddRow: 'Добавить строку',
+      btnLookups: 'Справочники',
+      btnExportCsv: 'Экспорт в CSV',
+      btnPrint: 'Печать',
+      btnSync: 'Синхронизация Google',
+      syncing: 'Синхронизация...',
+      synced: 'Данные успешно синхронизированы с Google Таблицей ✓',
+      syncError: 'Ошибка синхронизации с Google Таблицей',
+      filteredCount: (count, total) => `Показано ${count} из ${total} устройств`,
+      hintText: '💡 Можно редактировать прямо в таблице или открыть карточку двойным кликом по строке.',
+      emptyTitle: 'Оборудование не найдено',
+      emptyDesc: 'Попробуйте изменить параметры поиска или добавьте первое устройство в инвентарь',
+      btnEmptyAdd: '➕ Добавить первое устройство',
+      colSeq: '№',
+      colSn: 'ID (SN)',
+      colType: 'Тип оборудования',
+      colBrand: 'Бренд / Модель',
+      colStatus: 'Статус',
+      colLocation: 'Кабинет / Место',
+      colStatusDate: 'Дата статуса',
+      colIssue: 'Неисправность',
+      colNotes: 'Примечания',
+      colActions: 'Действия',
+      actionsEdit: 'Редактировать в карточке',
+      actionsDelete: 'Удалить устройство',
+      actionsSave: 'Сохранить изменения',
+      itemModalAddTitle: 'Добавление оборудования в инвентарь',
+      itemModalEditTitle: (seq) => `Редактирование устройства #${seq}`,
+      itemModalSubtitleAdd: 'Ввод данных через форму карточки',
+      fieldSeq: '№ (Порядковый номер):',
+      fieldSn: 'ID / Серийный номер устройства (ID / SN) — необязательно:',
+      fieldSnPlaceholder: 'Например: SN-948201 / PC-042 (если есть)',
+      fieldStatusDate: 'Дата изменения статуса:',
+      fieldType: 'Тип оборудования:',
+      fieldBrand: 'Бренд / Модель:',
+      fieldStatus: 'Статус оборудования:',
+      fieldLocation: 'Кабинет / Место / У кого:',
+      fieldIssue: 'Описание неисправности (если есть):',
+      fieldNotes: 'Дополнительные примечания (гарантия, поставщик, комментарий):',
+      fieldNotesPlaceholder: 'Например: рабочее место 14, гарантия до 2027...',
+      btnQuickAddType: '+ Новый тип',
+      btnQuickAddBrand: '+ Новая модель',
+      btnQuickAddLocation: '+ Новая локация',
+      btnQuickAddIssue: '+ Новая поломка',
+      btnCancel: 'Отмена',
+      btnSaveItem: '✓ Сохранить',
+      btnSaveItemEdit: '✓ Сохранить изменения',
+      lookupsTitle: 'Управление справочниками',
+      lookupsSubtitle: 'Добавление, редактирование и удаление вариантов в выпадающих списках',
+      tabTypes: '🏷️ Типы оборудования',
+      tabBrands: '💻 Бренды и модели',
+      tabStatuses: '🚦 Статусы',
+      tabLocations: '📍 Кабинеты и локации',
+      tabIssues: '⚠️ Частые неисправности',
+      catNames: {
+        types: 'Типы оборудования',
+        brands: 'Бренды и модели',
+        statuses: 'Статусы',
+        locations: 'Кабинеты и локации',
+        issues: 'Типы неисправностей'
+      },
+      addLookupPlaceholder: 'Введите новое значение для списка...',
+      btnAddLookup: '➕ Добавить в список',
+      btnClose: 'Закрыть',
+      btnFinishClose: 'Готово и закрыть',
+      deleteConfirm: (seq, type, brand) => `Вы уверены, что хотите удалить из инвентаря:\n№ #${seq} - ${type} (${brand})?`,
+      toastAdded: (seq, type) => `Новое устройство #${seq} успешно добавлено в инвентарь ✓`,
+      toastUpdated: (seq, type) => `Устройство #${seq} (${type}) успешно обновлено ✓`,
+      toastDeleted: (seq) => `Устройство #${seq} удалено из инвентаря`,
+      toastLookupAdded: (val, cat) => `"${val}" успешно добавлено в категорию "${cat}"`,
+      toastLookupExists: 'Такой пункт уже существует в списке',
+      toastInlineOn: 'Режим прямого редактирования в таблице включен: можно изменять ячейки!',
+      toastInlineOff: 'Режим прямого редактирования закрыт. Все данные сохранены.',
+      toastAccessDenied: 'Доступ закрыт: только администратор (Татьяна) имеет права на управление инвентарем'
+    }
+  };
+
+  function t(key, ...args) {
+    const dict = I18N[currentLang] || I18N['he'];
+    const val = dict[key] !== undefined ? dict[key] : (I18N['he'][key] || key);
+    if (typeof val === 'function') {
+      return val(...args);
+    }
+    return val;
+  }
+
+  /**
+   * Status appearance and icons with multi-language labels
    */
   const STATUS_CONFIG = {
     'תקין / עובד': {
       className: 'status-ok',
       icon: '🟢',
-      label: 'תקין / עובד',
+      labelHe: 'תקין / עובד',
+      labelRu: 'Исправно / Работает',
       bg: 'rgba(22, 163, 74, 0.12)',
       text: '#15803d',
       border: 'rgba(22, 163, 74, 0.35)'
@@ -40,7 +245,8 @@ const Inventory = (() => {
     'יש בעיה / תקול': {
       className: 'status-problem',
       icon: '🟠',
-      label: 'יש בעיה / תקול',
+      labelHe: 'יש בעיה / תקול',
+      labelRu: 'Есть проблема / Неисправно',
       bg: 'rgba(217, 119, 6, 0.12)',
       text: '#b45309',
       border: 'rgba(217, 119, 6, 0.35)'
@@ -48,7 +254,8 @@ const Inventory = (() => {
     'מושבת / שבור': {
       className: 'status-broken',
       icon: '🔴',
-      label: 'מושבת / שבור',
+      labelHe: 'מושבת / שבור',
+      labelRu: 'Сломано / Списано',
       bg: 'rgba(220, 38, 38, 0.12)',
       text: '#b91c1c',
       border: 'rgba(220, 38, 38, 0.35)'
@@ -56,7 +263,8 @@ const Inventory = (() => {
     'במחסן': {
       className: 'status-storage',
       icon: '📦',
-      label: 'במחסן',
+      labelHe: 'במחסן',
+      labelRu: 'На складе',
       bg: 'rgba(100, 116, 139, 0.12)',
       text: '#475569',
       border: 'rgba(100, 116, 139, 0.35)'
@@ -64,16 +272,14 @@ const Inventory = (() => {
     'בשימוש': {
       className: 'status-inuse',
       icon: '💼',
-      label: 'בשימוש',
+      labelHe: 'בשימוש',
+      labelRu: 'В использовании',
       bg: 'rgba(37, 99, 235, 0.12)',
       text: '#1d4ed8',
       border: 'rgba(37, 99, 235, 0.35)'
     }
   };
 
-  /**
-   * Helper: Escape HTML
-   */
   function escapeHtml(str) {
     if (!str && str !== 0) return '';
     return String(str)
@@ -83,9 +289,6 @@ const Inventory = (() => {
       .replace(/"/g, '&quot;');
   }
 
-  /**
-   * Helper: Format Date for Display (YYYY-MM-DD -> DD/MM/YYYY)
-   */
   function formatDateDisplay(dateStr) {
     if (!dateStr) return '—';
     const parts = String(dateStr).slice(0, 10).split('-');
@@ -95,9 +298,6 @@ const Inventory = (() => {
     return dateStr;
   }
 
-  /**
-   * Helper: Get Today's Date formatted YYYY-MM-DD
-   */
   function getTodayIsoDate() {
     const d = new Date();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -105,33 +305,38 @@ const Inventory = (() => {
     return `${d.getFullYear()}-${month}-${day}`;
   }
 
-  /**
-   * Helper: Get Status configuration
-   */
   function getStatusConfig(status) {
     if (status && STATUS_CONFIG[status]) return STATUS_CONFIG[status];
-    // Loose matching
     if (status) {
-      if (status.includes('עובד') || status.includes('תקין')) return STATUS_CONFIG['תקין / עובד'];
-      if (status.includes('בעיה') || status.includes('תקול')) return STATUS_CONFIG['יש בעיה / תקול'];
-      if (status.includes('מושבת') || status.includes('שבור') || status.includes('סלומן')) return STATUS_CONFIG['מושבת / שבור'];
-      if (status.includes('מחסן')) return STATUS_CONFIG['במחסן'];
-      if (status.includes('שימוש')) return STATUS_CONFIG['בשימוש'];
+      const s = String(status).toLowerCase();
+      if (s.includes('עובד') || s.includes('תקין') || s.includes('исправ') || s.includes('работ')) return STATUS_CONFIG['תקין / עובד'];
+      if (s.includes('בעיה') || s.includes('תקול') || s.includes('проблем') || s.includes('неисправ')) return STATUS_CONFIG['יש בעיה / תקול'];
+      if (s.includes('מושבת') || s.includes('שבור') || s.includes('сломан') || s.includes('списан')) return STATUS_CONFIG['מושבת / שבור'];
+      if (s.includes('מחסן') || s.includes('склад')) return STATUS_CONFIG['במחסן'];
+      if (s.includes('שימוש') || s.includes('использ')) return STATUS_CONFIG['בשימוש'];
     }
     return {
       className: 'status-default',
       icon: '🔹',
-      label: status || 'לא הוגדר',
+      labelHe: status || 'לא הוגדר',
+      labelRu: status || 'Не указан',
       bg: 'rgba(100, 116, 139, 0.08)',
       text: '#64748b',
       border: 'rgba(100, 116, 139, 0.25)'
     };
   }
 
+  function getStatusLabel(status) {
+    const cfg = getStatusConfig(status);
+    return currentLang === 'ru' ? cfg.labelRu : cfg.labelHe;
+  }
+
   /**
    * Initialize Inventory Module
    */
   function init() {
+    currentLang = Storage.getInventoryLang() || 'he';
+
     modalEl = document.getElementById('inventoryModal');
     itemModalEl = document.getElementById('inventoryItemModal');
     lookupsModalEl = document.getElementById('inventoryLookupsModal');
@@ -164,6 +369,18 @@ const Inventory = (() => {
         Admin.closeAdminModal();
         openModal();
       });
+    }
+
+    // Language Toggle Button
+    const btnToggleLang = document.getElementById('btnToggleInvLang');
+    if (btnToggleLang) {
+      btnToggleLang.addEventListener('click', toggleLanguage);
+    }
+
+    // Cloud Sync Button
+    const btnSyncNow = document.getElementById('btnSyncInventoryNow');
+    if (btnSyncNow) {
+      btnSyncNow.addEventListener('click', handleSyncNowClick);
     }
 
     // Modal Close Buttons
@@ -263,7 +480,7 @@ const Inventory = (() => {
       });
     }
 
-    // Setup Quick Add buttons next to selects in Item Dialog (+ חדש)
+    // Setup Quick Add buttons next to selects in Item Dialog
     setupQuickAddButtons();
 
     // Setup Lookups Manager
@@ -280,10 +497,215 @@ const Inventory = (() => {
         renderAdminModalSummary();
       }
     });
+
+    applyLanguageUI();
   }
 
   /**
-   * Setup "+ חדש" quick buttons next to select elements in item modal
+   * Toggle between Hebrew and Russian specifically for Inventory
+   */
+  function toggleLanguage() {
+    currentLang = currentLang === 'he' ? 'ru' : 'he';
+    Storage.setInventoryLang(currentLang);
+    applyLanguageUI();
+    populateFilterDropdowns();
+    renderStats();
+    renderTable();
+    if (lookupsModalEl && lookupsModalEl.classList.contains('active')) {
+      switchLookupCategory(activeLookupCategory);
+    }
+    const toastMsg = currentLang === 'ru' ? 'Язык инвентаря переключен на русский 🇷🇺' : 'שפת האינוונטר שונתה לעברית 🇮🇱';
+    App.showToast(toastMsg, 'info', 1600);
+  }
+
+  /**
+   * Apply language strings and direction to inventory modals
+   */
+  function applyLanguageUI() {
+    const isRu = currentLang === 'ru';
+    const dir = isRu ? 'ltr' : 'rtl';
+
+    // Apply direction to modals (main page stays untouched)
+    [modalEl, itemModalEl, lookupsModalEl].forEach(el => {
+      if (el) el.setAttribute('dir', dir);
+    });
+
+    // Language Toggle button
+    const btnToggleLang = document.getElementById('btnToggleInvLang');
+    const txtLangToggle = document.getElementById('txtInvLangToggle');
+    if (txtLangToggle) txtLangToggle.textContent = isRu ? 'עברית' : 'Русский';
+    if (btnToggleLang) btnToggleLang.title = t('langToggleTitle');
+
+    // Modal Header Titles
+    const titleEl = document.getElementById('invModalTitle');
+    const subtitleEl = document.getElementById('invModalSubtitle');
+    if (titleEl) titleEl.textContent = t('modalTitle');
+    if (subtitleEl) subtitleEl.textContent = t('modalSubtitle');
+
+    // Stat card labels
+    const setLabel = (selector, key) => {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = t(key);
+    };
+    setLabel('.stat-total .stat-label', 'statTotal');
+    setLabel('.stat-ok .stat-label', 'statOk');
+    setLabel('.stat-inuse .stat-label', 'statInUse');
+    setLabel('.stat-problem .stat-label', 'statProblem');
+    setLabel('.stat-broken .stat-label', 'statBroken');
+    setLabel('.stat-storage .stat-label', 'statStorage');
+
+    // Search placeholder
+    if (searchInputEl) {
+      searchInputEl.placeholder = t('searchPlaceholder');
+    }
+
+    // Action button labels
+    const btnAddItem = document.getElementById('btnAddInventoryItem');
+    if (btnAddItem) {
+      const span = btnAddItem.querySelector('span:last-child');
+      if (span) span.textContent = t('btnAddItem');
+      btnAddItem.title = isRu ? 'Добавить оборудование через форму' : 'הוספת פריט חדש באמצעות דיאלוג';
+    }
+
+    const btnAddInlineRow = document.getElementById('btnAddInlineRow');
+    if (btnAddInlineRow) {
+      const span = btnAddInlineRow.querySelector('span:last-child');
+      if (span) span.textContent = t('btnAddRow');
+    }
+
+    const btnManageLookups = document.getElementById('btnManageLookups');
+    if (btnManageLookups) {
+      const span = btnManageLookups.querySelector('span:last-child');
+      if (span) span.textContent = t('btnLookups');
+    }
+
+    const txtExport = document.getElementById('txtExportCsvBtn');
+    if (txtExport) txtExport.textContent = t('btnExportCsv');
+
+    const txtPrint = document.getElementById('txtPrintBtn');
+    if (txtPrint) txtPrint.textContent = t('btnPrint');
+
+    const txtSync = document.getElementById('txtSyncInvBtn');
+    if (txtSync && !isSyncing) txtSync.textContent = t('btnSync');
+
+    // Hint text
+    const hintEl = document.querySelector('.inv-hint-text');
+    if (hintEl) hintEl.textContent = t('hintText');
+
+    // Modal Footers
+    const btnModalFooterClose = document.getElementById('inventoryModalFooterClose');
+    if (btnModalFooterClose) btnModalFooterClose.textContent = t('btnClose');
+
+    // Item Dialog labels
+    const lblSeq = document.getElementById('lblInvItemSeq');
+    if (lblSeq) lblSeq.innerHTML = `<span class="required">*</span> ${t('fieldSeq')}`;
+
+    const lblStatusDate = document.getElementById('lblInvItemStatusDate');
+    if (lblStatusDate) lblStatusDate.innerHTML = `<span class="required">*</span> ${t('fieldStatusDate')}`;
+
+    const lblSn = document.getElementById('lblInvItemSn');
+    if (lblSn) lblSn.textContent = t('fieldSn');
+
+    const inputSn = document.getElementById('invItemSn');
+    if (inputSn) inputSn.placeholder = t('fieldSnPlaceholder');
+
+    const lblType = document.querySelector('label[for="invItemType"]');
+    if (lblType) lblType.innerHTML = `<span class="required">*</span> ${t('fieldType')}`;
+
+    const lblBrand = document.querySelector('label[for="invItemBrand"]');
+    if (lblBrand) lblBrand.innerHTML = `<span class="required">*</span> ${t('fieldBrand')}`;
+
+    const lblStatus = document.querySelector('label[for="invItemStatus"]');
+    if (lblStatus) lblStatus.innerHTML = `<span class="required">*</span> ${t('fieldStatus')}`;
+
+    const lblLoc = document.querySelector('label[for="invItemLocation"]');
+    if (lblLoc) lblLoc.innerHTML = `<span class="required">*</span> ${t('fieldLocation')}`;
+
+    const lblIssue = document.querySelector('label[for="invItemIssue"]');
+    if (lblIssue) lblIssue.textContent = t('fieldIssue');
+
+    const lblNotes = document.querySelector('label[for="invItemNotes"]');
+    if (lblNotes) lblNotes.textContent = t('fieldNotes');
+
+    const inputNotes = document.getElementById('invItemNotes');
+    if (inputNotes) inputNotes.placeholder = t('fieldNotesPlaceholder');
+
+    // Quick add button labels
+    const setQuickBtn = (cat, key) => {
+      const btn = document.querySelector(`.btn-quick-add-lookup[data-category="${cat}"]`);
+      if (btn) btn.textContent = t(key);
+    };
+    setQuickBtn('types', 'btnQuickAddType');
+    setQuickBtn('brands', 'btnQuickAddBrand');
+    setQuickBtn('locations', 'btnQuickAddLocation');
+    setQuickBtn('issues', 'btnQuickAddIssue');
+
+    const btnCancel = document.getElementById('btnCancelInventoryItem');
+    if (btnCancel) btnCancel.textContent = t('btnCancel');
+
+    // Lookups modal labels
+    const lookupsTitleEl = document.getElementById('invLookupsModalTitle');
+    if (lookupsTitleEl) lookupsTitleEl.textContent = t('lookupsTitle');
+    const lookupsSub = document.querySelector('#inventoryLookupsModal .modal-subtitle');
+    if (lookupsSub) lookupsSub.textContent = t('lookupsSubtitle');
+
+    const tabBtnTypes = document.querySelector('.lookup-cat-btn[data-category="types"]');
+    if (tabBtnTypes) tabBtnTypes.textContent = t('tabTypes');
+    const tabBtnBrands = document.querySelector('.lookup-cat-btn[data-category="brands"]');
+    if (tabBtnBrands) tabBtnBrands.textContent = t('tabBrands');
+    const tabBtnStatuses = document.querySelector('.lookup-cat-btn[data-category="statuses"]');
+    if (tabBtnStatuses) tabBtnStatuses.textContent = t('tabStatuses');
+    const tabBtnLocations = document.querySelector('.lookup-cat-btn[data-category="locations"]');
+    if (tabBtnLocations) tabBtnLocations.textContent = t('tabLocations');
+    const tabBtnIssues = document.querySelector('.lookup-cat-btn[data-category="issues"]');
+    if (tabBtnIssues) tabBtnIssues.textContent = t('tabIssues');
+
+    const inputNewLookup = document.getElementById('newLookupItemValue');
+    if (inputNewLookup) inputNewLookup.placeholder = t('addLookupPlaceholder');
+
+    const btnAddLookupSubmit = document.querySelector('#formAddLookupItem button[type="submit"]');
+    if (btnAddLookupSubmit) btnAddLookupSubmit.textContent = t('btnAddLookup');
+
+    const btnLookupsFinish = document.getElementById('inventoryLookupsFooterClose');
+    if (btnLookupsFinish) btnLookupsFinish.textContent = t('btnFinishClose');
+  }
+
+  /**
+   * Manual Cloud Sync Button Handler
+   */
+  async function handleSyncNowClick() {
+    if (isSyncing) return;
+    const gsUrl = Storage.getGoogleSheetsUrl();
+    if (!gsUrl) {
+      App.showToast(currentLang === 'ru' ? 'URL таблицы Google Sheets не настроен в настройках админа' : 'כתובת Google Sheets אינה מוגדרת בהגדרות מנהל', 'warning', 3000);
+      return;
+    }
+
+    isSyncing = true;
+    const syncIcon = document.getElementById('syncInvIcon');
+    const syncText = document.getElementById('txtSyncInvBtn');
+    if (syncIcon) syncIcon.classList.add('spin-icon');
+    if (syncText) syncText.textContent = t('syncing');
+
+    try {
+      await Storage.syncInventoryWithSheets();
+      populateFilterDropdowns();
+      renderStats();
+      renderTable();
+      renderAdminModalSummary();
+      App.showToast(t('synced'), 'success', 2500);
+    } catch (err) {
+      console.error('Inventory sync error:', err);
+      App.showToast(t('syncError'), 'danger', 3000);
+    } finally {
+      isSyncing = false;
+      if (syncIcon) syncIcon.classList.remove('spin-icon');
+      if (syncText) syncText.textContent = t('btnSync');
+    }
+  }
+
+  /**
+   * Setup "+ חדש" / "+ Новый" quick buttons
    */
   function setupQuickAddButtons() {
     const quickAddButtons = document.querySelectorAll('.btn-quick-add-lookup');
@@ -293,59 +715,61 @@ const Inventory = (() => {
         const targetSelectId = btn.dataset.target;
         if (!category || !targetSelectId) return;
 
-        const catNames = {
-          types: 'סוג ציוד',
-          brands: 'מותג / דגם',
-          locations: 'מיקום / כיתה / אצל מי',
-          issues: 'סוג תקלה'
-        };
-        const title = catNames[category] || 'פריט חדש';
-        const newVal = prompt(`הזן ${title} חדש לרשימה:`);
+        const catNamesDict = I18N[currentLang].catNames || I18N['he'].catNames;
+        const title = catNamesDict[category] || 'פריט חדש';
+        const promptMsg = currentLang === 'ru' ? `Введите новое значение для категории "${title}":` : `הזן ${title} חדש לרשימה:`;
+        const newVal = prompt(promptMsg);
         if (newVal && newVal.trim()) {
           const trimmed = newVal.trim();
           Storage.addInventoryLookupItem(category, trimmed);
-          // Refresh item modal dropdowns
           populateItemSelects();
           const targetSelect = document.getElementById(targetSelectId);
           if (targetSelect) {
             targetSelect.value = trimmed;
           }
-          // Refresh filter dropdowns
           populateFilterDropdowns();
-          App.showToast(`"${trimmed}" נוסף לרשימת ה-${title}`, 'success');
+          App.showToast(t('toastLookupAdded', trimmed, title), 'success');
         }
       });
     });
   }
 
   /**
-   * Open the Main Inventory Modal (Admin Only)
+   * Open Main Inventory Modal (Admin Only)
    */
   function openModal() {
     if (!Storage.isAdminActive()) {
-      App.showToast('גישה חסומה: רק למנהלת המערכת (טטיאנה) יש הרשאה לניהול אינוונטר', 'danger');
+      App.showToast(t('toastAccessDenied'), 'danger');
       return;
     }
 
     if (!modalEl) modalEl = document.getElementById('inventoryModal');
     if (!modalEl) return;
 
-    // Reset filters
     if (searchInputEl) searchInputEl.value = '';
     if (filterStatusEl) filterStatusEl.value = '';
     if (filterTypeEl) filterTypeEl.value = '';
     if (filterLocationEl) filterLocationEl.value = '';
 
+    applyLanguageUI();
     populateFilterDropdowns();
     renderStats();
     renderTable();
 
     modalEl.classList.add('active');
+
+    // Trigger auto background sync on open if Google Sheets is connected
+    if (Storage.getGoogleSheetsUrl()) {
+      Storage.pullFromSheets().then(res => {
+        if (res && res.changed) {
+          populateFilterDropdowns();
+          renderStats();
+          renderTable();
+        }
+      });
+    }
   }
 
-  /**
-   * Close the Main Inventory Modal
-   */
   function closeModal() {
     if (!modalEl) return;
     modalEl.classList.remove('active');
@@ -357,10 +781,24 @@ const Inventory = (() => {
   function populateFilterDropdowns() {
     const lookups = Storage.getInventoryLookups();
 
+    // Status filter
+    if (filterStatusEl) {
+      const currentVal = filterStatusEl.value;
+      filterStatusEl.innerHTML = `<option value="">${escapeHtml(t('allStatuses'))}</option>`;
+      (lookups.statuses || []).forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st;
+        const icon = (STATUS_CONFIG[st] && STATUS_CONFIG[st].icon) || '🔹';
+        opt.textContent = `${icon} ${getStatusLabel(st)}`;
+        filterStatusEl.appendChild(opt);
+      });
+      filterStatusEl.value = currentVal;
+    }
+
     // Type filter
     if (filterTypeEl) {
       const currentVal = filterTypeEl.value;
-      filterTypeEl.innerHTML = '<option value="">כל סוגי הציוד (הכל)</option>';
+      filterTypeEl.innerHTML = `<option value="">${escapeHtml(t('allTypes'))}</option>`;
       (lookups.types || []).forEach(type => {
         const opt = document.createElement('option');
         opt.value = type;
@@ -373,7 +811,7 @@ const Inventory = (() => {
     // Location filter
     if (filterLocationEl) {
       const currentVal = filterLocationEl.value;
-      filterLocationEl.innerHTML = '<option value="">כל המיקומים (הכל)</option>';
+      filterLocationEl.innerHTML = `<option value="">${escapeHtml(t('allLocations'))}</option>`;
       (lookups.locations || []).forEach(loc => {
         const opt = document.createElement('option');
         opt.value = loc;
@@ -398,12 +836,12 @@ const Inventory = (() => {
     let countInUse = 0;
 
     items.forEach(it => {
-      const st = String(it.status || '');
-      if (st.includes('עובד') || st.includes('תקין')) countWorking++;
-      else if (st.includes('בעיה') || st.includes('תקול')) countProblem++;
-      else if (st.includes('מושבת') || st.includes('שבור')) countBroken++;
-      else if (st.includes('מחסן')) countStorage++;
-      else if (st.includes('שימוש')) countInUse++;
+      const st = String(it.status || '').toLowerCase();
+      if (st.includes('עובד') || st.includes('תקין') || st.includes('исправ') || st.includes('работ')) countWorking++;
+      else if (st.includes('בעיה') || st.includes('תקול') || st.includes('проблем') || st.includes('неисправ')) countProblem++;
+      else if (st.includes('מושבת') || st.includes('שבור') || st.includes('сломан') || st.includes('списан')) countBroken++;
+      else if (st.includes('מחסן') || st.includes('склад')) countStorage++;
+      else if (st.includes('שימוש') || st.includes('использ')) countInUse++;
       else countWorking++;
     });
 
@@ -421,7 +859,7 @@ const Inventory = (() => {
   }
 
   /**
-   * Render Inventory Data Table
+   * Render Inventory Data Table with ID (SN) and multi-language support
    */
   function renderTable() {
     if (!tableEl) return;
@@ -441,7 +879,7 @@ const Inventory = (() => {
       if (filterLocation && it.location !== filterLocation) return false;
 
       if (searchTerm) {
-        const str = `${it.seq} ${it.type} ${it.brand} ${it.status} ${it.location} ${it.issue} ${it.notes}`.toLowerCase();
+        const str = `${it.seq} ${it.sn || ''} ${it.type} ${it.brand} ${it.status} ${it.location} ${it.issue} ${it.notes}`.toLowerCase();
         if (!str.includes(searchTerm)) return false;
       }
       return true;
@@ -453,7 +891,7 @@ const Inventory = (() => {
     // Update count indicator
     const counterEl = document.getElementById('invFilteredCount');
     if (counterEl) {
-      counterEl.textContent = `מציג ${filtered.length} מתוך ${items.length} פריטים`;
+      counterEl.textContent = t('filteredCount', filtered.length, items.length);
     }
 
     // Toggle row add button visibility based on mode
@@ -466,33 +904,34 @@ const Inventory = (() => {
     if (btnToggleInlineEdit) {
       btnToggleInlineEdit.classList.toggle('active', isInlineEditMode);
       btnToggleInlineEdit.innerHTML = isInlineEditMode
-        ? '<span>✓</span><span>סיום עריכה ישירה</span>'
-        : '<span>✏️</span><span>עריכה ישירה בטבלה</span>';
+        ? `<span>✓</span><span>${escapeHtml(t('btnInlineEditDone'))}</span>`
+        : `<span>✏️</span><span>${escapeHtml(t('btnInlineEdit'))}</span>`;
     }
 
     if (filtered.length === 0) {
       tableEl.innerHTML = `
         <thead>
           <tr>
-            <th style="width: 45px;">מס״ד</th>
-            <th>סוג ציוד</th>
-            <th>מותג / דגם</th>
-            <th>סטטוס</th>
-            <th>מיקום</th>
-            <th>תאריך שינוי סטטוס</th>
-            <th>פירוט תקלה</th>
-            <th>הערות</th>
-            <th style="width: 100px;">פעולות</th>
+            <th style="width: 48px;">${escapeHtml(t('colSeq'))}</th>
+            <th style="min-width: 110px;">${escapeHtml(t('colSn'))}</th>
+            <th>${escapeHtml(t('colType'))}</th>
+            <th>${escapeHtml(t('colBrand'))}</th>
+            <th>${escapeHtml(t('colStatus'))}</th>
+            <th>${escapeHtml(t('colLocation'))}</th>
+            <th>${escapeHtml(t('colStatusDate'))}</th>
+            <th>${escapeHtml(t('colIssue'))}</th>
+            <th>${escapeHtml(t('colNotes'))}</th>
+            <th style="width: 95px; text-align: center;">${escapeHtml(t('colActions'))}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="9" class="inv-empty-state">
+            <td colspan="10" class="inv-empty-state">
               <div class="empty-icon">📦</div>
-              <div class="empty-title">לא נמצאו פריטי ציוד</div>
-              <div class="empty-desc">נסה לשנות את מסנני החיפוש או הוסף פריט חדש לאינוונטר</div>
+              <div class="empty-title">${escapeHtml(t('emptyTitle'))}</div>
+              <div class="empty-desc">${escapeHtml(t('emptyDesc'))}</div>
               <button type="button" class="btn btn-primary btn-sm" onclick="Inventory.openItemModal(null)">
-                ➕ הוסף פריט ציוד ראשון
+                ${escapeHtml(t('btnEmptyAdd'))}
               </button>
             </td>
           </tr>
@@ -501,19 +940,20 @@ const Inventory = (() => {
       return;
     }
 
-    // Build Table
+    // Build Table Header
     let html = `
       <thead>
         <tr>
-          <th style="width: 48px;" title="מספר סידורי">מס״ד</th>
-          <th style="min-width: 130px;">סוג ציוד</th>
-          <th style="min-width: 150px;">מותג / דגם</th>
-          <th style="min-width: 130px;">סטטוס</th>
-          <th style="min-width: 140px;">מיקום</th>
-          <th style="min-width: 120px;">תאריך סטטוס</th>
-          <th style="min-width: 150px;">פירוט תקלה</th>
-          <th style="min-width: 160px;">הערות</th>
-          <th style="width: 90px; text-align: center;">פעולות</th>
+          <th style="width: 48px;" title="${currentLang === 'ru' ? 'Порядковый номер' : 'מספר סידורי'}">${escapeHtml(t('colSeq'))}</th>
+          <th style="min-width: 115px;" title="${currentLang === 'ru' ? 'Идентификатор / Серийный номер (необязательно)' : 'מזהה / מספר סידורי של המכשיר (אופציונלי)'}">${escapeHtml(t('colSn'))}</th>
+          <th style="min-width: 130px;">${escapeHtml(t('colType'))}</th>
+          <th style="min-width: 150px;">${escapeHtml(t('colBrand'))}</th>
+          <th style="min-width: 130px;">${escapeHtml(t('colStatus'))}</th>
+          <th style="min-width: 140px;">${escapeHtml(t('colLocation'))}</th>
+          <th style="min-width: 115px;">${escapeHtml(t('colStatusDate'))}</th>
+          <th style="min-width: 140px;">${escapeHtml(t('colIssue'))}</th>
+          <th style="min-width: 150px;">${escapeHtml(t('colNotes'))}</th>
+          <th style="width: 90px; text-align: center;">${escapeHtml(t('colActions'))}</th>
         </tr>
       </thead>
       <tbody>
@@ -521,13 +961,20 @@ const Inventory = (() => {
 
     filtered.forEach(item => {
       const stCfg = getStatusConfig(item.status);
-      const isIssue = item.issue && !item.issue.includes('תקין') && !item.issue.includes('ללא תקלה');
+      const stLabel = getStatusLabel(item.status);
+      const isIssue = item.issue && !item.issue.includes('תקין') && !item.issue.includes('ללא תקלה') && !item.issue.includes('исправ') && !item.issue.includes('нет');
 
       if (!isInlineEditMode) {
         // Normal Display Mode
         html += `
-          <tr class="inv-row" data-id="${escapeHtml(item.id)}" title="לחץ פעמיים לעריכה מהירה">
+          <tr class="inv-row" data-id="${escapeHtml(item.id)}" title="${currentLang === 'ru' ? 'Двойной клик для редактирования' : 'לחץ פעמיים לעריכה מהירה'}">
             <td class="inv-cell-seq"><strong>#${escapeHtml(item.seq)}</strong></td>
+            <td class="inv-cell-sn">
+              ${item.sn
+                ? `<span class="inv-sn-badge"><code>${escapeHtml(item.sn)}</code></span>`
+                : `<span class="text-muted">—</span>`
+              }
+            </td>
             <td class="inv-cell-type">
               <span class="inv-type-pill">${escapeHtml(item.type || '—')}</span>
             </td>
@@ -535,7 +982,7 @@ const Inventory = (() => {
             <td class="inv-cell-status">
               <span class="inv-status-badge ${stCfg.className}" style="background: ${stCfg.bg}; color: ${stCfg.text}; border-color: ${stCfg.border};">
                 <span class="status-dot">${stCfg.icon}</span>
-                <span>${escapeHtml(item.status || 'תקין / עובד')}</span>
+                <span>${escapeHtml(stLabel)}</span>
               </span>
             </td>
             <td class="inv-cell-location">
@@ -545,7 +992,7 @@ const Inventory = (() => {
             <td class="inv-cell-issue">
               ${isIssue
                 ? `<span class="inv-issue-badge warning">⚠️ ${escapeHtml(item.issue)}</span>`
-                : `<span class="inv-issue-badge ok">✓ ${escapeHtml(item.issue || 'תקין')}</span>`
+                : `<span class="inv-issue-badge ok">✓ ${escapeHtml(item.issue || (currentLang === 'ru' ? 'Исправно' : 'תקין'))}</span>`
               }
             </td>
             <td class="inv-cell-notes" title="${escapeHtml(item.notes || '')}">
@@ -553,10 +1000,10 @@ const Inventory = (() => {
             </td>
             <td class="inv-cell-actions">
               <div class="row-actions">
-                <button type="button" class="btn-icon-action btn-edit-row" data-id="${escapeHtml(item.id)}" title="עריכה בדיאלוג">
+                <button type="button" class="btn-icon-action btn-edit-row" data-id="${escapeHtml(item.id)}" title="${escapeHtml(t('actionsEdit'))}">
                   ✏️
                 </button>
-                <button type="button" class="btn-icon-action btn-delete-row" data-id="${escapeHtml(item.id)}" title="מחיקת פריט">
+                <button type="button" class="btn-icon-action btn-delete-row" data-id="${escapeHtml(item.id)}" title="${escapeHtml(t('actionsDelete'))}">
                   🗑️
                 </button>
               </div>
@@ -568,7 +1015,10 @@ const Inventory = (() => {
         html += `
           <tr class="inv-row inv-row-editing" data-id="${escapeHtml(item.id)}">
             <td class="inv-cell-seq">
-              <input type="number" class="inv-inline-input input-seq" data-id="${escapeHtml(item.id)}" data-field="seq" value="${escapeHtml(item.seq)}" style="width: 52px; text-align: center;">
+              <input type="number" class="inv-inline-input input-seq" data-id="${escapeHtml(item.id)}" data-field="seq" value="${escapeHtml(item.seq)}" style="width: 48px; text-align: center;">
+            </td>
+            <td class="inv-cell-sn">
+              <input type="text" class="inv-inline-input input-sn" data-id="${escapeHtml(item.id)}" data-field="sn" value="${escapeHtml(item.sn || '')}" placeholder="ID / SN" style="font-family: monospace;">
             </td>
             <td class="inv-cell-type">
               <select class="inv-inline-select" data-id="${escapeHtml(item.id)}" data-field="type">
@@ -582,7 +1032,7 @@ const Inventory = (() => {
             </td>
             <td class="inv-cell-status">
               <select class="inv-inline-select inv-inline-status" data-id="${escapeHtml(item.id)}" data-field="status">
-                ${(lookups.statuses || []).map(s => `<option value="${escapeHtml(s)}" ${s === item.status ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                ${(lookups.statuses || []).map(s => `<option value="${escapeHtml(s)}" ${s === item.status ? 'selected' : ''}>${escapeHtml(getStatusLabel(s))}</option>`).join('')}
               </select>
             </td>
             <td class="inv-cell-location">
@@ -599,14 +1049,14 @@ const Inventory = (() => {
               </select>
             </td>
             <td class="inv-cell-notes">
-              <input type="text" class="inv-inline-input" data-id="${escapeHtml(item.id)}" data-field="notes" value="${escapeHtml(item.notes || '')}" placeholder="הערה/סידורי...">
+              <input type="text" class="inv-inline-input" data-id="${escapeHtml(item.id)}" data-field="notes" value="${escapeHtml(item.notes || '')}" placeholder="${currentLang === 'ru' ? 'Заметка/номер...' : 'הערה/סידורי...'}">
             </td>
             <td class="inv-cell-actions">
               <div class="row-actions">
-                <button type="button" class="btn-icon-action btn-inline-save" data-id="${escapeHtml(item.id)}" title="שמור שינויים">
+                <button type="button" class="btn-icon-action btn-inline-save" data-id="${escapeHtml(item.id)}" title="${escapeHtml(t('actionsSave'))}">
                   ✓
                 </button>
-                <button type="button" class="btn-icon-action btn-delete-row" data-id="${escapeHtml(item.id)}" title="מחק">
+                <button type="button" class="btn-icon-action btn-delete-row" data-id="${escapeHtml(item.id)}" title="${escapeHtml(t('actionsDelete'))}">
                   🗑️
                 </button>
               </div>
@@ -619,12 +1069,11 @@ const Inventory = (() => {
     html += `</tbody>`;
     tableEl.innerHTML = html;
 
-    // Attach row events
     attachTableRowEvents();
   }
 
   /**
-   * Attach Row Events (Edit, Delete, Inline Changes, Double Click)
+   * Attach Row Events
    */
   function attachTableRowEvents() {
     if (!tableEl) return;
@@ -669,11 +1118,10 @@ const Inventory = (() => {
         });
       });
 
-      // Quick save button click feedback
       tableEl.querySelectorAll('.btn-inline-save').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          App.showToast('נשמר בהצלחה ✓', 'success', 1200);
+          App.showToast(currentLang === 'ru' ? 'Сохранено ✓' : 'נשמר בהצלחה ✓', 'success', 1200);
         });
       });
     }
@@ -695,11 +1143,9 @@ const Inventory = (() => {
       item[field] = value;
     }
 
-    // If status changed, auto-update statusDate to today if not explicitly changed
     if (field === 'status') {
       const today = getTodayIsoDate();
       item.statusDate = today;
-      // Also update the date input in DOM if present
       const dateInput = tableEl.querySelector(`.input-date[data-id="${id}"]`);
       if (dateInput) dateInput.value = today;
     }
@@ -711,22 +1157,16 @@ const Inventory = (() => {
     renderAdminModalSummary();
   }
 
-  /**
-   * Toggle between Display Mode and Inline Table Edit Mode
-   */
   function toggleInlineEditMode() {
     isInlineEditMode = !isInlineEditMode;
     renderTable();
     if (isInlineEditMode) {
-      App.showToast('מצב עריכה ישירה בטבלה הופעל: ניתן לערוך תאים ישירות!', 'info', 2200);
+      App.showToast(t('toastInlineOn'), 'info', 2200);
     } else {
-      App.showToast('מצב עריכה ישירה נסגר. כל הנתונים נשמרו.', 'success', 1800);
+      App.showToast(t('toastInlineOff'), 'success', 1800);
     }
   }
 
-  /**
-   * Add a New Row Directly in Inline Mode
-   */
   function addNewRowInline() {
     const items = Storage.getInventory();
     const lookups = Storage.getInventoryLookups();
@@ -737,6 +1177,7 @@ const Inventory = (() => {
     const newItem = {
       id: 'inv_' + Date.now(),
       seq: newSeq,
+      sn: '',
       type: (lookups.types && lookups.types[0]) || 'מחשב נייח',
       brand: (lookups.brands && lookups.brands[0]) || 'Lenovo ThinkCentre M720',
       status: 'תקין / עובד',
@@ -752,7 +1193,6 @@ const Inventory = (() => {
     renderStats();
     renderTable();
 
-    // Scroll to new row and focus
     setTimeout(() => {
       const newRow = tableEl.querySelector(`tr[data-id="${newItem.id}"]`);
       if (newRow) {
@@ -762,7 +1202,7 @@ const Inventory = (() => {
       }
     }, 100);
 
-    App.showToast(`נוספה שורה חדשה (#${newSeq})`, 'success', 1500);
+    App.showToast(currentLang === 'ru' ? `Добавлена новая строка (#${newSeq})` : `נוספה שורה חדשה (#${newSeq})`, 'success', 1500);
   }
 
   /**
@@ -776,12 +1216,14 @@ const Inventory = (() => {
 
     currentEditingItemId = itemId;
     populateItemSelects();
+    applyLanguageUI();
 
     const titleEl = document.getElementById('invItemModalTitle');
     const subtitleEl = document.getElementById('invItemModalSubtitle');
     const btnSubmit = document.getElementById('btnSaveInventoryItem');
 
     const seqInput = document.getElementById('invItemSeq');
+    const snInput = document.getElementById('invItemSn');
     const typeSelect = document.getElementById('invItemType');
     const brandSelect = document.getElementById('invItemBrand');
     const statusSelect = document.getElementById('invItemStatus');
@@ -797,11 +1239,12 @@ const Inventory = (() => {
       const item = items.find(it => it.id === itemId);
       if (!item) return;
 
-      if (titleEl) titleEl.textContent = `עריכת פריט ציוד #${item.seq}`;
-      if (subtitleEl) subtitleEl.textContent = `${item.type || ''} • ${item.brand || ''}`;
-      if (btnSubmit) btnSubmit.textContent = '✓ שמור שינויים';
+      if (titleEl) titleEl.textContent = t('itemModalEditTitle', item.seq);
+      if (subtitleEl) subtitleEl.textContent = `${item.type || ''} • ${item.brand || ''}${item.sn ? ' • SN: ' + item.sn : ''}`;
+      if (btnSubmit) btnSubmit.textContent = t('btnSaveItemEdit');
 
       if (seqInput) seqInput.value = item.seq;
+      if (snInput) snInput.value = item.sn || '';
       if (typeSelect) typeSelect.value = item.type || '';
       if (brandSelect) brandSelect.value = item.brand || '';
       if (statusSelect) statusSelect.value = item.status || 'תקין / עובד';
@@ -814,11 +1257,12 @@ const Inventory = (() => {
       const maxSeq = items.reduce((max, it) => Math.max(max, Number(it.seq) || 0), 0);
       const nextSeq = maxSeq + 1;
 
-      if (titleEl) titleEl.textContent = 'הוספת פריט ציוד חדש לאינוונטר';
-      if (subtitleEl) subtitleEl.textContent = 'הזנת נתונים באמצעות טופס דיאלוג';
-      if (btnSubmit) btnSubmit.textContent = '➕ הוסף פריט';
+      if (titleEl) titleEl.textContent = t('itemModalAddTitle');
+      if (subtitleEl) subtitleEl.textContent = t('itemModalSubtitleAdd');
+      if (btnSubmit) btnSubmit.textContent = t('btnSaveItem');
 
       if (seqInput) seqInput.value = nextSeq;
+      if (snInput) snInput.value = '';
       if (typeSelect) typeSelect.selectedIndex = 0;
       if (brandSelect) brandSelect.selectedIndex = 0;
       if (statusSelect) statusSelect.value = 'תקין / עובד';
@@ -831,22 +1275,16 @@ const Inventory = (() => {
     itemModalEl.classList.add('active');
   }
 
-  /**
-   * Close Item Dialog Form
-   */
   function closeItemModal() {
     if (!itemModalEl) return;
     itemModalEl.classList.remove('active');
     currentEditingItemId = null;
   }
 
-  /**
-   * Populate Selects in Item Dialog from Lookups
-   */
   function populateItemSelects() {
     const lookups = Storage.getInventoryLookups();
 
-    const populateSelect = (selectId, itemsArray) => {
+    const populateSelect = (selectId, itemsArray, isStatus = false) => {
       const select = document.getElementById(selectId);
       if (!select) return;
       const currentVal = select.value;
@@ -854,7 +1292,7 @@ const Inventory = (() => {
       (itemsArray || []).forEach(val => {
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = val;
+        opt.textContent = isStatus ? getStatusLabel(val) : val;
         select.appendChild(opt);
       });
       if (currentVal && itemsArray && itemsArray.includes(currentVal)) {
@@ -864,7 +1302,7 @@ const Inventory = (() => {
 
     populateSelect('invItemType', lookups.types);
     populateSelect('invItemBrand', lookups.brands);
-    populateSelect('invItemStatus', lookups.statuses);
+    populateSelect('invItemStatus', lookups.statuses, true);
     populateSelect('invItemLocation', lookups.locations);
     populateSelect('invItemIssue', lookups.issues);
   }
@@ -876,6 +1314,7 @@ const Inventory = (() => {
     e.preventDefault();
 
     const seqInput = document.getElementById('invItemSeq');
+    const snInput = document.getElementById('invItemSn');
     const typeSelect = document.getElementById('invItemType');
     const brandSelect = document.getElementById('invItemBrand');
     const statusSelect = document.getElementById('invItemStatus');
@@ -885,6 +1324,7 @@ const Inventory = (() => {
     const notesInput = document.getElementById('invItemNotes');
 
     const seq = Number(seqInput.value) || 1;
+    const sn = (snInput ? snInput.value || '' : '').trim();
     const type = (typeSelect.value || '').trim();
     const brand = (brandSelect.value || '').trim();
     const status = (statusSelect.value || 'תקין / עובד').trim();
@@ -894,7 +1334,7 @@ const Inventory = (() => {
     const notes = (notesInput.value || '').trim();
 
     if (!type) {
-      App.showToast('נא לבחור סוג ציוד', 'warning');
+      App.showToast(currentLang === 'ru' ? 'Пожалуйста, выберите тип оборудования' : 'נא לבחור סוג ציוד', 'warning');
       return;
     }
 
@@ -905,6 +1345,7 @@ const Inventory = (() => {
       const item = items.find(it => it.id === currentEditingItemId);
       if (item) {
         item.seq = seq;
+        item.sn = sn;
         item.type = type;
         item.brand = brand;
         item.status = status;
@@ -914,13 +1355,14 @@ const Inventory = (() => {
         item.notes = notes;
         item.updatedAt = new Date().toISOString();
         Storage.saveInventory(items);
-        App.showToast(`פריט #${seq} (${type}) עודכן בהצלחה ✓`, 'success');
+        App.showToast(t('toastUpdated', seq, type), 'success');
       }
     } else {
       // Create new
       const newItem = {
         id: 'inv_' + Date.now(),
         seq,
+        sn,
         type,
         brand,
         status,
@@ -932,7 +1374,7 @@ const Inventory = (() => {
       };
       items.push(newItem);
       Storage.saveInventory(items);
-      App.showToast(`פריט ציוד חדש #${seq} נוסף בהצלחה לאינוונטר ✓`, 'success');
+      App.showToast(t('toastAdded', seq, type), 'success');
     }
 
     closeItemModal();
@@ -941,27 +1383,24 @@ const Inventory = (() => {
     renderAdminModalSummary();
   }
 
-  /**
-   * Delete an Item
-   */
   function deleteItem(id) {
     if (!id) return;
     const items = Storage.getInventory();
     const item = items.find(it => it.id === id);
     if (!item) return;
 
-    if (confirm(`האם את בטוחה שברצונך למחוק מאינוונטר הציוד את:\nמס״ד #${item.seq} - ${item.type} (${item.brand})?`)) {
+    if (confirm(t('deleteConfirm', item.seq, item.type, item.brand))) {
       const filtered = items.filter(it => it.id !== id);
       Storage.saveInventory(filtered);
       renderStats();
       renderTable();
       renderAdminModalSummary();
-      App.showToast(`פריט #${item.seq} נמחק מהאינוונטר`, 'info');
+      App.showToast(t('toastDeleted', item.seq), 'info');
     }
   }
 
   // ==========================================================================
-  // Lookups Management (עריכת רשימות בחירה)
+  // Lookups Management
   // ==========================================================================
 
   function openLookupsModal() {
@@ -970,6 +1409,7 @@ const Inventory = (() => {
     if (!lookupsModalEl) lookupsModalEl = document.getElementById('inventoryLookupsModal');
     if (!lookupsModalEl) return;
 
+    applyLanguageUI();
     switchLookupCategory(activeLookupCategory || 'types');
     lookupsModalEl.classList.add('active');
   }
@@ -982,7 +1422,6 @@ const Inventory = (() => {
   }
 
   function setupLookupsManager() {
-    // Category Tab Switching
     const catButtons = document.querySelectorAll('.lookup-cat-btn');
     catButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -991,7 +1430,6 @@ const Inventory = (() => {
       });
     });
 
-    // Add Lookup Item Form
     const formAddLookup = document.getElementById('formAddLookupItem');
     if (formAddLookup) {
       formAddLookup.addEventListener('submit', (e) => {
@@ -1000,14 +1438,17 @@ const Inventory = (() => {
         const val = (input.value || '').trim();
         if (!val) return;
 
+        const catNamesDict = I18N[currentLang].catNames || I18N['he'].catNames;
+        const catTitle = catNamesDict[activeLookupCategory] || activeLookupCategory;
+
         const ok = Storage.addInventoryLookupItem(activeLookupCategory, val);
         if (ok) {
           input.value = '';
           renderLookupsList();
           populateFilterDropdowns();
-          App.showToast(`"${val}" נוסף בהצלחה לרשימה ✓`, 'success');
+          App.showToast(t('toastLookupAdded', val, catTitle), 'success');
         } else {
-          App.showToast('פריט זה כבר קיים ברשימה', 'warning');
+          App.showToast(t('toastLookupExists'), 'warning');
         }
       });
     }
@@ -1020,17 +1461,11 @@ const Inventory = (() => {
       btn.classList.toggle('active', btn.dataset.category === category);
     });
 
-    const categoryNames = {
-      types: 'סוגי ציוד',
-      brands: 'מותגים ודגמים',
-      statuses: 'סטטוסים',
-      locations: 'מיקומים וכיתות',
-      issues: 'סוגי תקלות'
-    };
-
+    const catNamesDict = I18N[currentLang].catNames || I18N['he'].catNames;
     const titleEl = document.getElementById('lookupCategoryTitle');
     if (titleEl) {
-      titleEl.textContent = `ניהול רשימת: ${categoryNames[category] || category}`;
+      const prefix = currentLang === 'ru' ? 'Управление справочником: ' : 'ניהול רשימת: ';
+      titleEl.textContent = `${prefix}${catNamesDict[category] || category}`;
     }
 
     renderLookupsList();
@@ -1044,18 +1479,20 @@ const Inventory = (() => {
     const items = lookups[activeLookupCategory] || [];
 
     if (items.length === 0) {
-      listEl.innerHTML = '<div class="text-muted" style="padding: 1rem; text-align: center;">אין פריטים ברשימה זו עדיין. הוסף פריט חדש למטה.</div>';
+      const emptyText = currentLang === 'ru' ? 'В этом справочнике пока нет записей. Добавьте пункт ниже.' : 'אין פריטים ברשימה זו עדיין. הוסף פריט חדש למטה.';
+      listEl.innerHTML = `<div class="text-muted" style="padding: 1rem; text-align: center;">${emptyText}</div>`;
       return;
     }
 
     let html = '';
-    items.forEach((item, idx) => {
+    items.forEach((item) => {
+      const displayItem = activeLookupCategory === 'statuses' ? getStatusLabel(item) : item;
       html += `
         <div class="lookup-item-card">
-          <span class="lookup-item-name">${escapeHtml(item)}</span>
+          <span class="lookup-item-name">${escapeHtml(displayItem)}</span>
           <div class="lookup-item-actions">
-            <button type="button" class="btn-icon-action btn-edit-lookup" data-item="${escapeHtml(item)}" title="שינוי שם">✏️</button>
-            <button type="button" class="btn-icon-action btn-delete-lookup" data-item="${escapeHtml(item)}" title="מחיקה מהרשימה">🗑️</button>
+            <button type="button" class="btn-icon-action btn-edit-lookup" data-item="${escapeHtml(item)}" title="${currentLang === 'ru' ? 'Изменить название' : 'שינוי שם'}">✏️</button>
+            <button type="button" class="btn-icon-action btn-delete-lookup" data-item="${escapeHtml(item)}" title="${currentLang === 'ru' ? 'Удалить из списка' : 'מחיקה מהרשימה'}">🗑️</button>
           </div>
         </div>
       `;
@@ -1063,17 +1500,18 @@ const Inventory = (() => {
 
     listEl.innerHTML = html;
 
-    // Attach actions
     listEl.querySelectorAll('.btn-edit-lookup').forEach(btn => {
       btn.addEventListener('click', () => {
         const oldVal = btn.dataset.item;
-        const newVal = prompt(`שנה שם פריט עבור "${oldVal}":`, oldVal);
+        const promptMsg = currentLang === 'ru' ? `Изменить значение для "${oldVal}":` : `שנה שם פריט עבור "${oldVal}":`;
+        const newVal = prompt(promptMsg, oldVal);
         if (newVal && newVal.trim() && newVal.trim() !== oldVal) {
           Storage.updateInventoryLookupItem(activeLookupCategory, oldVal, newVal.trim());
           renderLookupsList();
           populateFilterDropdowns();
           renderTable();
-          App.showToast(`שם הפריט עודכן ל-"${newVal.trim()}"`, 'success');
+          const toastMsg = currentLang === 'ru' ? `Значение обновлено на "${newVal.trim()}"` : `שם הפריט עודכן ל-"${newVal.trim()}"`;
+          App.showToast(toastMsg, 'success');
         }
       });
     });
@@ -1081,11 +1519,13 @@ const Inventory = (() => {
     listEl.querySelectorAll('.btn-delete-lookup').forEach(btn => {
       btn.addEventListener('click', () => {
         const item = btn.dataset.item;
-        if (confirm(`האם למחוק את "${item}" מרשימת הבחירה?`)) {
+        const confirmMsg = currentLang === 'ru' ? `Удалить "${item}" из списка?` : `האם למחוק את "${item}" מרשימת הבחירה?`;
+        if (confirm(confirmMsg)) {
           Storage.removeInventoryLookupItem(activeLookupCategory, item);
           renderLookupsList();
           populateFilterDropdowns();
-          App.showToast(`"${item}" הוסר מהרשימה`, 'info');
+          const toastMsg = currentLang === 'ru' ? `"${item}" удалено из списка` : `"${item}" הוסר מהרשימה`;
+          App.showToast(toastMsg, 'info');
         }
       });
     });
@@ -1108,12 +1548,12 @@ const Inventory = (() => {
     let countInUse = 0;
 
     items.forEach(it => {
-      const st = String(it.status || '');
-      if (st.includes('עובד') || st.includes('תקין')) countWorking++;
-      else if (st.includes('בעיה') || st.includes('תקול')) countProblem++;
-      else if (st.includes('מושבת') || st.includes('שבור')) countBroken++;
-      else if (st.includes('מחסן')) countStorage++;
-      else if (st.includes('שימוש')) countInUse++;
+      const st = String(it.status || '').toLowerCase();
+      if (st.includes('עובד') || st.includes('תקין') || st.includes('исправ') || st.includes('работ')) countWorking++;
+      else if (st.includes('בעיה') || st.includes('תקול') || st.includes('проблем') || st.includes('неисправ')) countProblem++;
+      else if (st.includes('מושבת') || st.includes('שבור') || st.includes('сломан') || st.includes('списан')) countBroken++;
+      else if (st.includes('מחסן') || st.includes('склад')) countStorage++;
+      else if (st.includes('שימוש') || st.includes('использ')) countInUse++;
       else countWorking++;
     });
 
@@ -1123,7 +1563,7 @@ const Inventory = (() => {
           <div class="inv-summary-icon">📦</div>
           <div>
             <h4>מערכת אינוונטריזציה וציוד טכנולוגי</h4>
-            <p class="text-muted">סך הכל ${total} מחשבים וציוד רשומים במערכת וב-Google Sheets</p>
+            <p class="text-muted">סך הכל ${total} מחשבים וציוד רשומים במערכת וב-Google Sheets (כולל עמודת ID/SN)</p>
           </div>
         </div>
         <div class="inv-mini-stats-grid">
@@ -1169,21 +1609,26 @@ const Inventory = (() => {
   function exportCsv() {
     const items = Storage.getInventory();
     if (!items.length) {
-      App.showToast('אין פריטים לייצוא', 'warning');
+      App.showToast(currentLang === 'ru' ? 'Нет данных для экспорта' : 'אין פריטים לייצוא', 'warning');
       return;
     }
 
-    const headers = ['מס״ד', 'סוג ציוד', 'מותג ודגם', 'סטטוס', 'מיקום', 'תאריך שינוי סטטוס', 'פירוט תקלה', 'הערות'];
+    const isRu = currentLang === 'ru';
+    const headers = isRu
+      ? ['№', 'ID (SN)', 'Тип оборудования', 'Бренд и модель', 'Статус', 'Местоположение', 'Дата статуса', 'Неисправность', 'Примечания']
+      : ['מס״ד', 'ID (SN)', 'סוג ציוד', 'מותג ודגם', 'סטטוס', 'מיקום', 'תאריך שינוי סטטוס', 'פירוט תקלה', 'הערות'];
 
-    let csvContent = '\uFEFF'; // UTF-8 BOM for Hebrew support in Excel
+    let csvContent = '\uFEFF'; // UTF-8 BOM
     csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\r\n';
 
     items.forEach(it => {
+      const stLabel = getStatusLabel(it.status);
       const row = [
         it.seq || '',
+        it.sn || '',
         it.type || '',
         it.brand || '',
-        it.status || '',
+        stLabel || it.status || '',
         it.location || '',
         it.statusDate || '',
         it.issue || '',
@@ -1200,7 +1645,7 @@ const Inventory = (() => {
     link.click();
     URL.revokeObjectURL(url);
 
-    App.showToast('קובץ Excel / CSV הורד בהצלחה 📥', 'success');
+    App.showToast(currentLang === 'ru' ? 'Файл Excel / CSV успешно скачан 📥' : 'קובץ Excel / CSV הורד בהצלחה 📥', 'success');
   }
 
   return {
@@ -1211,6 +1656,7 @@ const Inventory = (() => {
     closeItemModal,
     openLookupsModal,
     closeLookupsModal,
+    toggleLanguage,
     deleteItem,
     exportCsv,
     renderAdminModalSummary

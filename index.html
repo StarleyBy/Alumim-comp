@@ -466,10 +466,16 @@
           <span class="modal-header-icon">📦</span>
           <div>
             <h3 id="invModalTitle" class="modal-title">אינוונטר ציוד ומחשבים • בית הספר עלומים חולון</h3>
-            <div class="modal-subtitle">מעקב מצאי, תקינות, מיקומי כיתות, תקלות וסנכרון ענן (למנהלת בלבד)</div>
+            <div id="invModalSubtitle" class="modal-subtitle">מעקב מצאי, תקינות, מיקומי כיתות, תקלות וסנכרון ענן (למנהלת בלבד)</div>
           </div>
         </div>
-        <button type="button" id="inventoryModalClose" class="modal-close" aria-label="סגור">&times;</button>
+        <div class="inv-header-actions">
+          <button type="button" id="btnToggleInvLang" class="btn-inv-lang" title="החלף שפה / Переключить язык">
+            <span class="lang-icon">🌐</span>
+            <span id="txtInvLangToggle">Русский</span>
+          </button>
+          <button type="button" id="inventoryModalClose" class="modal-close" aria-label="סגור">&times;</button>
+        </div>
       </div>
 
       <div class="modal-body inv-modal-body">
@@ -569,12 +575,17 @@
 
             <button type="button" id="btnExportInventoryCsv" class="btn btn-secondary btn-sm" title="הורדת קובץ אקסל (CSV) עם תמיכה מלאה בעברית">
               <span>📥</span>
-              <span>ייצוא CSV</span>
+              <span id="txtExportCsvBtn">ייצוא CSV</span>
             </button>
 
             <button type="button" id="btnPrintInventory" class="btn btn-secondary btn-sm" title="הדפסת טבלת אינוונטר">
               <span>🖨️</span>
-              <span>הדפסה</span>
+              <span id="txtPrintBtn">הדפסה</span>
+            </button>
+
+            <button type="button" id="btnSyncInventoryNow" class="btn btn-secondary btn-sm" title="סנכרן עם Google Sheets כעת">
+              <span id="syncInvIcon">🔄</span>
+              <span id="txtSyncInvBtn">סנכרון ענן</span>
             </button>
           </div>
         </div>
@@ -617,18 +628,25 @@
         <form id="inventoryItemForm">
           <div class="form-row-2">
             <div class="form-group">
-              <label for="invItemSeq" class="form-label">
+              <label for="invItemSeq" class="form-label" id="lblInvItemSeq">
                 <span class="required">*</span> מס״ד (מספר סידורי):
               </label>
               <input type="number" id="invItemSeq" class="form-input" required min="1" placeholder="1">
             </div>
 
             <div class="form-group">
-              <label for="invItemStatusDate" class="form-label">
+              <label for="invItemStatusDate" class="form-label" id="lblInvItemStatusDate">
                 <span class="required">*</span> תאריך שינוי סטטוס:
               </label>
               <input type="date" id="invItemStatusDate" class="form-input" required>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="invItemSn" class="form-label" id="lblInvItemSn">
+              מזהה מכשיר / מספר סידורי (ID / SN) — אופציונלי:
+            </label>
+            <input type="text" id="invItemSn" class="form-input" placeholder="לדוגמה: SN-948201 / חולון-042 (אם קיים)">
           </div>
 
           <div class="form-group">
