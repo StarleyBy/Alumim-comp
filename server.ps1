@@ -40,11 +40,27 @@ try {
                 $mime = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { "application/octet-stream" }
                 $response.ContentType = $mime
                 $response.AddHeader("Access-Control-Allow-Origin", "*")
+                $response.AddHeader("Accept-Ranges", "bytes")
 
                 $bytes = [System.IO.File]::ReadAllBytes($filePath)
-                $response.ContentLength64 = $bytes.Length
-                $response.OutputStream.Write($bytes, 0, $bytes.Length)
-                $response.StatusCode = 200
+                $totalLen = $bytes.Length
+
+                $rangeHeader = $request.Headers["Range"]
+                if (![string]::IsNullOrEmpty($rangeHeader) -and $rangeHeader -match "bytes=(\d+)-(\d*)") {
+                    $start = [long]$matches[1]
+                    $end = if (![string]::IsNullOrEmpty($matches[2])) { [long]$matches[2] } else { $totalLen - 1 }
+                    if ($end -ge $totalLen) { $end = $totalLen - 1 }
+                    $count = $end - $start + 1
+
+                    $response.StatusCode = 206
+                    $response.AddHeader("Content-Range", "bytes $start-$end/$totalLen")
+                    $response.ContentLength64 = $count
+                    $response.OutputStream.Write($bytes, [int]$start, [int]$count)
+                } else {
+                    $response.StatusCode = 200
+                    $response.ContentLength64 = $totalLen
+                    $response.OutputStream.Write($bytes, 0, $totalLen)
+                }
             } else {
                 $response.StatusCode = 404
                 $msg = [System.Text.Encoding]::UTF8.GetBytes("404 Not Found")

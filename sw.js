@@ -4,7 +4,7 @@
  * Implements Stale-While-Revalidate for app assets and Network-Only for dynamic cloud sync.
  */
 
-const CACHE_NAME = 'compalumim-v4';
+const CACHE_NAME = 'compalumim-v5';
 
 const STATIC_ASSETS = [
   './',
@@ -54,8 +54,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // Never cache external Google Apps Script or dynamic API requests
-  if (url.includes('script.google.com') || url.includes('googleusercontent.com') || event.request.method !== 'GET') {
+  // Never cache external Google Apps Script, dynamic API requests, or media audio streaming
+  if (url.includes('script.google.com') || url.includes('googleusercontent.com') || url.includes('.mp3') || url.includes('/audio/') || event.request.method !== 'GET') {
     return;
   }
 
